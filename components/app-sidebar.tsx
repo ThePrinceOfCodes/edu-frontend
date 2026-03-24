@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation"
 import {
   BookOpen,
   LayoutDashboard,
+  Layers,
   Settings,
   Users,
 } from "lucide-react"
@@ -43,6 +44,11 @@ const navItems = [
     title: "School Boards",
     url: "/dashboard/school-boards",
     icon: Settings,
+  },
+  {
+    title: "Classes",
+    url: "/dashboard/classes",
+    icon: Layers,
   },
 ]
 

@@ -33,6 +33,8 @@ export interface School {
   _id?: string
   name: string
   schoolBoard?: string | null
+  schoolTypes?: string[]
+  classes?: string[]
   address?: string
   status?: "active" | "inactive"
 }
@@ -40,6 +42,7 @@ export interface School {
 export interface CreateSchoolInput {
   name: string
   schoolBoard?: string
+  schoolTypes?: string[]
   address?: string
   status?: "active" | "inactive"
 }
@@ -69,4 +72,28 @@ export interface CreateStaffInput {
     phoneNumber?: string
     role?: "teacher" | "staff"
   }
+}
+
+export interface SchoolType {
+  id?: string
+  _id?: string
+  name: string
+}
+
+export interface CreateSchoolTypeInput {
+  name: string
+}
+
+export interface Class {
+  id?: string
+  _id?: string
+  name: string
+  code: string
+  schoolTypeId: string
+}
+
+export interface CreateClassInput {
+  name: string
+  code: string
+  schoolTypeId: string
 }

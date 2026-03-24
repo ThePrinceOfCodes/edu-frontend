@@ -97,3 +97,53 @@ export interface CreateClassInput {
   code: string
   schoolTypeId: string
 }
+
+export interface StudentHistory {
+  fromSchool?: string | null
+  toSchool?: string | null
+  fromClassId?: string | null
+  toClassId: string
+  action: "created" | "promoted" | "transferred"
+  changedAt: string
+}
+
+export interface Student {
+  id?: string
+  _id?: string
+  firstName: string
+  middleName?: string | null
+  lastName: string
+  regNumber: string
+  stateOfOrigin: string
+  localGovernment: string
+  gender: "male" | "female"
+  dateOfBirth: string
+  schoolBoard?: string | null
+  school: string
+  classId: string
+  status?: "active" | "inactive"
+  promotionHistory?: StudentHistory[]
+}
+
+export interface CreateStudentInput {
+  firstName: string
+  middleName?: string
+  lastName: string
+  regNumber: string
+  stateOfOrigin: string
+  localGovernment: string
+  gender: "male" | "female"
+  dateOfBirth: string
+  school: string
+  classId: string
+  status?: "active" | "inactive"
+}
+
+export interface PromoteStudentInput {
+  school?: string
+  classId: string
+}
+
+export interface BulkCreateStudentsInput {
+  students: CreateStudentInput[]
+}

@@ -4,11 +4,15 @@ import type {
   CreateStaffInput,
   CreateSchoolTypeInput,
   CreateClassInput,
+  CreateStudentInput,
+  PromoteStudentInput,
+  BulkCreateStudentsInput,
   PaginatedResponse,
   School,
   SchoolBoard,
   SchoolType,
   Class,
+  Student,
   Staff,
 } from "@/interfaces/resource-interface"
 import { request } from "@/services/http"
@@ -78,6 +82,34 @@ export const resourceService = {
   },
   createClass(input: CreateClassInput) {
     return request<Class>("/api/classes", {
+      method: "POST",
+      body: input,
+    })
+  },
+
+  getStudents(params?: { limit?: number; page?: number; school?: string; classId?: string }) {
+    return request<PaginatedResponse<Student>>(`/api/students${toQueryString(params)}`)
+  },
+  createStudent(input: CreateStudentInput) {
+    return request<Student>("/api/students", {
+      method: "POST",
+      body: input,
+    })
+  },
+  bulkCreateStudents(input: BulkCreateStudentsInput) {
+    return request<{
+      total: number
+      createdCount: number
+      failedCount: number
+      created: Student[]
+      failed: Array<{ row: number; regNumber?: string; reason: string }>
+    }>("/api/students/bulk-import", {
+      method: "POST",
+      body: input,
+    })
+  },
+  promoteStudent(studentId: string, input: PromoteStudentInput) {
+    return request<Student>(`/api/students/${studentId}/promote`, {
       method: "POST",
       body: input,
     })

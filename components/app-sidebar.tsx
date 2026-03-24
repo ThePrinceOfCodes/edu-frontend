@@ -36,6 +36,11 @@ const navItems = [
     icon: Users,
   },
   {
+    title: "Students",
+    url: "/dashboard/students",
+    icon: Users,
+  },
+  {
     title: "Schools",
     url: "/dashboard/schools",
     icon: BookOpen,

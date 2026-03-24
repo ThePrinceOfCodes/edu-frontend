@@ -157,3 +157,36 @@ export interface PromoteStudentInput {
 export interface BulkCreateStudentsInput {
   students: CreateStudentInput[]
 }
+
+export interface AttendanceDay {
+  date: string
+  label: string
+}
+
+export interface AttendanceSummaryRow {
+  studentId: string
+  studentName: string
+  regNumber: string
+  attendancePercentage: number
+  statusByDate: Record<string, string>
+}
+
+export interface AttendanceSummary {
+  school: {
+    id: string
+    name: string
+  }
+  term: {
+    id: string
+    name: string
+    academicSessionId: string
+    schoolBoard: string
+    school?: string | null
+    startDate: string
+    endDate: string
+    isActive: boolean
+    resolvedScope: "school" | "school-board"
+  }
+  days: AttendanceDay[]
+  rows: AttendanceSummaryRow[]
+}

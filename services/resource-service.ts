@@ -7,6 +7,7 @@ import type {
   CreateStudentInput,
   PromoteStudentInput,
   BulkCreateStudentsInput,
+  AttendanceSummary,
   PaginatedResponse,
   School,
   SchoolBoard,
@@ -113,5 +114,8 @@ export const resourceService = {
       method: "POST",
       body: input,
     })
+  },
+  getAttendanceSummary(params?: { school?: string; termId?: string }) {
+    return request<AttendanceSummary>(`/api/attendance/summary${toQueryString(params)}`)
   },
 }

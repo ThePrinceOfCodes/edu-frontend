@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import {
   BookOpen,
   ChevronUp,
+  CalendarDays,
   LayoutDashboard,
   Layers,
   LogOut,
@@ -46,6 +47,11 @@ const navItems = [
     title: "Students",
     url: "/dashboard/students",
     icon: Users,
+  },
+  {
+    title: "Attendance",
+    url: "/dashboard/attendance",
+    icon: CalendarDays,
   },
   {
     title: "Schools",

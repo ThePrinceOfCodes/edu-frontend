@@ -15,6 +15,9 @@ import type {
   Class,
   Student,
   Staff,
+  InternalUser,
+  CreateInternalUserInput,
+  UpdateInternalUserInput,
 } from "@/interfaces/resource-interface"
 import { request } from "@/services/http"
 
@@ -117,5 +120,34 @@ export const resourceService = {
   },
   getAttendanceSummary(params?: { school?: string; termId?: string }) {
     return request<AttendanceSummary>(`/api/attendance/summary${toQueryString(params)}`)
+  },
+
+  getUsers(params?: { limit?: number; page?: number; accountType?: string; role?: string }) {
+    return request<PaginatedResponse<InternalUser>>(`/api/users${toQueryString(params)}`)
+  },
+  createInternalUser(input: CreateInternalUserInput) {
+    return request<InternalUser>("/api/users", {
+      method: "POST",
+      body: input,
+    })
+  },
+  getUserById(userId: string) {
+    return request<InternalUser>(`/api/users/${userId}`)
+  },
+  updateUser(userId: string, input: UpdateInternalUserInput) {
+    return request<InternalUser>(`/api/users/${userId}`, {
+      method: "PATCH",
+      body: input,
+    })
+  },
+  deactivateUser(userId: string) {
+    return request<InternalUser>(`/api/users/${userId}/deactivate`, {
+      method: "POST",
+    })
+  },
+  deleteUser(userId: string) {
+    return request<InternalUser>(`/api/users/${userId}`, {
+      method: "DELETE",
+    })
   },
 }

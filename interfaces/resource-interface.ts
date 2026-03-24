@@ -108,6 +108,65 @@ export interface CreateClassInput {
   schoolTypeId: string
 }
 
+export type InternalUserRole = "super-admin" | "admin"
+
+export const INTERNAL_USER_PERMISSIONS = [
+  "users.read",
+  "users.write",
+  "auth.read",
+  "auth.write",
+  "schoolBoards.read",
+  "schoolBoards.write",
+  "schools.read",
+  "schools.write",
+  "staff.read",
+  "staff.write",
+  "schoolTypes.read",
+  "schoolTypes.write",
+  "classes.read",
+  "classes.write",
+  "students.read",
+  "students.write",
+  "attendance.read",
+  "terms.read",
+  "terms.write",
+  "academicSessions.read",
+  "academicSessions.write",
+] as const
+
+export type InternalUserPermission = (typeof INTERNAL_USER_PERMISSIONS)[number]
+
+export interface InternalUser {
+  id?: string
+  _id?: string
+  name: string
+  email: string
+  phoneNumber?: string | null
+  role?: string
+  accountType?: string
+  status?: "active" | "disabled"
+  isVerified?: boolean
+  permissions?: string[]
+}
+
+export interface CreateInternalUserInput {
+  name: string
+  email: string
+  password: string
+  phoneNumber?: string
+  role: InternalUserRole
+  permissions: string[]
+}
+
+export interface UpdateInternalUserInput {
+  name?: string
+  email?: string
+  phoneNumber?: string
+  role?: InternalUserRole
+  permissions?: string[]
+  status?: "active" | "disabled"
+}
+
 export interface StudentHistory {
   fromSchool?: string | null
   toSchool?: string | null

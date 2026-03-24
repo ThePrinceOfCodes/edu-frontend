@@ -42,32 +42,38 @@ const themeOptions: Array<{
 ]
 
 export default function SettingsPage() {
-  const user = authService.getStoredUser()
-  const [selectedTheme, setSelectedTheme] = useState<ThemeName>(() => {
-    if (typeof window === "undefined") {
-      return "forest-mono"
-    }
-
-    const storedTheme = localStorage.getItem(THEME_STORAGE_KEY)
-    if (storedTheme === "edu" || storedTheme === "forest-mono" || storedTheme === "mono") {
-      return storedTheme
-    }
-
-    return "forest-mono"
-  })
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    if (typeof window === "undefined") {
-      return false
-    }
-
-    return document.documentElement.classList.contains("dark")
-  })
+  const [user, setUser] = useState(authService.getStoredUser())
+  const [selectedTheme, setSelectedTheme] = useState<ThemeName>("forest-mono")
+  const [isDarkMode, setIsDarkMode] = useState(false)
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmNewPassword, setConfirmNewPassword] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+
+  useEffect(() => {
+    setUser(authService.getStoredUser())
+
+    const storedTheme = localStorage.getItem(THEME_STORAGE_KEY)
+    if (storedTheme === "edu" || storedTheme === "forest-mono" || storedTheme === "mono") {
+      setSelectedTheme(storedTheme)
+    }
+
+    const storedMode = localStorage.getItem(MODE_STORAGE_KEY)
+
+    if (storedMode === "dark") {
+      setIsDarkMode(true)
+      return
+    }
+
+    if (storedMode === "light") {
+      setIsDarkMode(false)
+      return
+    }
+
+    setIsDarkMode(document.documentElement.classList.contains("dark"))
+  }, [])
 
   const initials = useMemo(() => {
     const source = (user?.name || user?.email || "U").trim()

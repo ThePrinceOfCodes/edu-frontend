@@ -9,6 +9,10 @@ export interface AuthUser {
   name?: string
   email?: string
   avatar?: string | null
+  role?: string
+  accountType?: string
+  schoolBoardId?: string | null
+  schoolId?: string | null
 }
 
 export interface LoginResult {

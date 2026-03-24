@@ -7,7 +7,18 @@ import { getPublicBaseUrl } from "@/lib/env"
 type ProxyMethod = "GET" | "POST" | "PATCH" | "DELETE"
 
 function buildUrl(path: string, request?: Request) {
-  const url = new URL(path, getPublicBaseUrl())
+  const baseUrl = getPublicBaseUrl()
+  const base = new URL(baseUrl)
+
+  let normalizedPath = path.replace(/^\/+/, "")
+  const basePath = base.pathname.replace(/\/+$/, "")
+  const baseEndsWithV1 = /\/v1$/i.test(basePath)
+
+  if (baseEndsWithV1 && /^v1\//i.test(normalizedPath)) {
+    normalizedPath = normalizedPath.replace(/^v1\//i, "")
+  }
+
+  const url = new URL(normalizedPath, baseUrl)
 
   if (request) {
     const incomingUrl = new URL(request.url)

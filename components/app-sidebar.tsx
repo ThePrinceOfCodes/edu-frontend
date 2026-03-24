@@ -37,36 +37,49 @@ const navItems = [
     title: "Overview",
     url: "/dashboard",
     icon: LayoutDashboard,
+    internalOnly: false,
   },
   {
     title: "Staff",
     url: "/dashboard/staff",
     icon: Users,
+    hideForInternal: true,
+  },
+  {
+    title: "Users",
+    url: "/dashboard/users",
+    icon: User,
+    showForInternal: true,
   },
   {
     title: "Students",
     url: "/dashboard/students",
     icon: Users,
+    internalOnly: false,
   },
   {
     title: "Attendance",
     url: "/dashboard/attendance",
     icon: CalendarDays,
+    hideForInternal: true,
   },
   {
     title: "Schools",
     url: "/dashboard/schools",
     icon: BookOpen,
+    internalOnly: false,
   },
   {
     title: "School Boards",
     url: "/dashboard/school-boards",
     icon: Settings,
+    internalOnly: false,
   },
   {
     title: "Classes",
     url: "/dashboard/classes",
     icon: Layers,
+    hideForInternal: true,
   },
 ]
 
@@ -74,8 +87,12 @@ export function AppSidebar() {
   const router = useRouter()
   const pathname = usePathname()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const [authUser] = useState<AuthUser | null>(() => authService.getStoredUser())
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null)
   const menuContainerRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    setAuthUser(authService.getStoredUser())
+  }, [])
 
   useEffect(() => {
     function handleDocumentClick(event: MouseEvent) {
@@ -95,6 +112,13 @@ export function AppSidebar() {
       document.removeEventListener("mousedown", handleDocumentClick)
     }
   }, [])
+
+  const isInternalUser = authUser?.accountType === "internal"
+  const visibleNavItems = navItems.filter((item) => {
+    if (item.hideForInternal && isInternalUser) return false
+    if (item.showForInternal && !isInternalUser) return false
+    return true
+  })
 
   const displayName = authUser?.name?.trim() || "User"
   const displayEmail = authUser?.email?.trim() || ""
@@ -145,7 +169,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.map((item) => (
+              {visibleNavItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     render={<Link href={item.url} />}

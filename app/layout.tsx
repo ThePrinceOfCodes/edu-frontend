@@ -24,7 +24,24 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(() => {
+              const THEME_KEY = "app-theme"
+              const MODE_KEY = "app-theme-mode"
+              const storedTheme = localStorage.getItem(THEME_KEY) || "forest-mono"
+              const legacyMode = localStorage.getItem("theme")
+              const storedMode = localStorage.getItem(MODE_KEY) || ((legacyMode === "dark" || legacyMode === "light") ? legacyMode : null)
+              const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches
+              const shouldUseDark = storedMode ? storedMode === "dark" : prefersDark
+              document.documentElement.setAttribute("data-theme", storedTheme)
+              document.documentElement.classList.toggle("dark", shouldUseDark)
+            })();`,
+          }}
+        />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >

@@ -2,6 +2,7 @@
 
 import Image from "next/image"
 import { FormEvent, useMemo, useState } from "react"
+import { Moon, Sun } from "lucide-react"
 
 import { authService } from "@/services/auth-service"
 import { Button } from "@/components/ui/button"
@@ -9,8 +10,58 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
+type ThemeName = "edu" | "forest-mono" | "mono"
+
+const THEME_STORAGE_KEY = "app-theme"
+const MODE_STORAGE_KEY = "app-theme-mode"
+
+const themeOptions: Array<{
+  value: ThemeName
+  title: string
+  description: string
+  swatches: string[]
+}> = [
+  {
+    value: "edu",
+    title: "Edu Green",
+    description: "Core edu palette",
+    swatches: ["#25671E", "#48A111", "#F2B50B", "#F7F0F0"],
+  },
+  {
+    value: "forest-mono",
+    title: "Forest Mono",
+    description: "Forest + monochrome",
+    swatches: ["#25671E", "#000000", "#FFFFFF"],
+  },
+  {
+    value: "mono",
+    title: "Black & White",
+    description: "High-contrast monochrome",
+    swatches: ["#000000", "#FFFFFF"],
+  },
+]
+
 export default function SettingsPage() {
   const user = authService.getStoredUser()
+  const [selectedTheme, setSelectedTheme] = useState<ThemeName>(() => {
+    if (typeof window === "undefined") {
+      return "forest-mono"
+    }
+
+    const storedTheme = localStorage.getItem(THEME_STORAGE_KEY)
+    if (storedTheme === "edu" || storedTheme === "forest-mono" || storedTheme === "mono") {
+      return storedTheme
+    }
+
+    return "forest-mono"
+  })
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    if (typeof window === "undefined") {
+      return false
+    }
+
+    return document.documentElement.classList.contains("dark")
+  })
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmNewPassword, setConfirmNewPassword] = useState("")
@@ -28,6 +79,24 @@ export default function SettingsPage() {
 
     return `${parts[0]?.[0] || ""}${parts[1]?.[0] || ""}`.toUpperCase() || "U"
   }, [user?.email, user?.name])
+
+  function applyTheme(theme: ThemeName, darkMode: boolean) {
+    document.documentElement.setAttribute("data-theme", theme)
+    document.documentElement.classList.toggle("dark", darkMode)
+    localStorage.setItem(THEME_STORAGE_KEY, theme)
+    localStorage.setItem(MODE_STORAGE_KEY, darkMode ? "dark" : "light")
+  }
+
+  function handleThemeChange(theme: ThemeName) {
+    setSelectedTheme(theme)
+    applyTheme(theme, isDarkMode)
+  }
+
+  function handleDarkToggle() {
+    const next = !isDarkMode
+    setIsDarkMode(next)
+    applyTheme(selectedTheme, next)
+  }
 
   async function handlePasswordSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -64,6 +133,49 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold">Settings</h2>
+        <Button variant="outline" size="sm" onClick={handleDarkToggle}>
+          {isDarkMode ? <Sun className="size-4" /> : <Moon className="size-4" />}
+          <span>{isDarkMode ? "Light mode" : "Dark mode"}</span>
+        </Button>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Theme</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-2 md:grid-cols-3">
+          {themeOptions.map((theme) => {
+            const selected = selectedTheme === theme.value
+
+            return (
+              <button
+                key={theme.value}
+                type="button"
+                onClick={() => handleThemeChange(theme.value)}
+                className={`h-full rounded-md border p-3 text-left transition ${
+                  selected ? "border-primary bg-secondary" : "border-border"
+                }`}
+              >
+                <p className="font-medium">{theme.title}</p>
+                <div className="mt-2 flex items-center gap-2">
+                  {theme.swatches.map((color) => (
+                    <span
+                      key={`${theme.value}-${color}`}
+                      className="size-4 rounded-full border border-border"
+                      style={{ backgroundColor: color }}
+                      aria-hidden="true"
+                    />
+                  ))}
+                </div>
+                <p className="mt-2 text-sm text-muted-foreground">{theme.description}</p>
+              </button>
+            )
+          })}
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>Profile</CardTitle>

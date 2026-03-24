@@ -6,6 +6,13 @@ import { AUTH_TOKEN_COOKIE } from "@/lib/auth"
 type LoginResponse = {
   token?: string
   accessToken?: string
+  account?: {
+    id?: string
+    _id?: string
+    name?: string
+    email?: string
+    avatar?: string | null
+  }
   data?: {
     token?: string
     accessToken?: string
@@ -72,7 +79,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const nextResponse = NextResponse.json({ ok: true })
+    const nextResponse = NextResponse.json({ ok: true, user: payload.account ?? null })
 
     nextResponse.cookies.set(AUTH_TOKEN_COOKIE, token, {
       httpOnly: true,

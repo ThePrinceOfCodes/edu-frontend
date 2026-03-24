@@ -1,14 +1,21 @@
 "use client"
 
+import Image from "next/image"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
+import { useEffect, useMemo, useRef, useState } from "react"
 import {
   BookOpen,
+  ChevronUp,
   LayoutDashboard,
   Layers,
+  LogOut,
+  User,
   Settings,
   Users,
 } from "lucide-react"
+import type { AuthUser } from "@/interfaces/auth-interface"
+import { authService } from "@/services/auth-service"
 
 import {
   Sidebar,
@@ -58,7 +65,56 @@ const navItems = [
 ]
 
 export function AppSidebar() {
+  const router = useRouter()
   const pathname = usePathname()
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [authUser] = useState<AuthUser | null>(() => authService.getStoredUser())
+  const menuContainerRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    function handleDocumentClick(event: MouseEvent) {
+      if (!menuContainerRef.current) {
+        return
+      }
+
+      const target = event.target as Node
+      if (!menuContainerRef.current.contains(target)) {
+        setIsMenuOpen(false)
+      }
+    }
+
+    document.addEventListener("mousedown", handleDocumentClick)
+
+    return () => {
+      document.removeEventListener("mousedown", handleDocumentClick)
+    }
+  }, [])
+
+  const displayName = authUser?.name?.trim() || "User"
+  const displayEmail = authUser?.email?.trim() || ""
+  const avatarUrl = authUser?.avatar || null
+
+  const initials = useMemo(() => {
+    const source = displayName !== "User" ? displayName : displayEmail
+    const parts = source.split(/\s+/).filter(Boolean)
+
+    if (parts.length === 0) {
+      return "U"
+    }
+
+    if (parts.length === 1) {
+      return parts[0]?.slice(0, 2).toUpperCase() ?? "U"
+    }
+
+    return `${parts[0]?.[0] ?? ""}${parts[1]?.[0] ?? ""}`.toUpperCase() || "U"
+  }, [displayName, displayEmail])
+
+  async function handleLogout() {
+    setIsMenuOpen(false)
+    await authService.logout()
+    router.push("/auth/sign-in")
+    router.refresh()
+  }
 
   return (
     <Sidebar collapsible="icon" variant="inset">
@@ -103,9 +159,59 @@ export function AppSidebar() {
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton render={<Link href="/auth/sign-in" />} tooltip="Sign out">
-              <span>Sign out</span>
-            </SidebarMenuButton>
+            <div className="relative" ref={menuContainerRef}>
+              <SidebarMenuButton
+                tooltip="Account"
+                onClick={() => setIsMenuOpen((current) => !current)}
+              >
+                {avatarUrl ? (
+                  <Image
+                    src={avatarUrl}
+                    alt={displayName}
+                    className="size-7 rounded-full object-cover"
+                    width={28}
+                    height={28}
+                  />
+                ) : (
+                  <div className="flex size-7 items-center justify-center rounded-full bg-sidebar-primary text-xs font-semibold text-sidebar-primary-foreground">
+                    {initials}
+                  </div>
+                )}
+                <div className="grid flex-1 text-left text-sm leading-tight">
+                  <span className="truncate font-medium">{displayName}</span>
+                  <span className="truncate text-xs text-muted-foreground">
+                    {displayEmail || "Signed in"}
+                  </span>
+                </div>
+                <ChevronUp className="size-4" />
+              </SidebarMenuButton>
+
+              {isMenuOpen ? (
+                <div className="absolute bottom-12 left-0 z-50 w-56 rounded-md border bg-popover p-1 shadow-md">
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent"
+                    onClick={() => {
+                      setIsMenuOpen(false)
+                      router.push("/dashboard/settings")
+                    }}
+                  >
+                    <User className="size-4" />
+                    <span>Profile</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-destructive hover:bg-accent"
+                    onClick={() => {
+                      void handleLogout()
+                    }}
+                  >
+                    <LogOut className="size-4" />
+                    <span>Logout</span>
+                  </button>
+                </div>
+              ) : null}
+            </div>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>

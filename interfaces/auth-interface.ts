@@ -3,6 +3,20 @@ export interface LoginInput {
   password: string
 }
 
+export interface AuthUser {
+  id?: string
+  _id?: string
+  name?: string
+  email?: string
+  avatar?: string | null
+}
+
 export interface LoginResult {
   ok: boolean
+  user?: AuthUser | null
+}
+
+export interface ChangePasswordInput {
+  currentPassword: string
+  newPassword: string
 }

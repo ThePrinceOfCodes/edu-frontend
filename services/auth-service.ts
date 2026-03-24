@@ -1,4 +1,9 @@
-import type { AuthUser, LoginInput, LoginResult } from "@/interfaces/auth-interface"
+import type {
+  AuthUser,
+  ChangePasswordInput,
+  LoginInput,
+  LoginResult,
+} from "@/interfaces/auth-interface"
 import { request } from "@/services/http"
 
 const AUTH_USER_STORAGE_KEY = "auth_user"
@@ -61,5 +66,11 @@ export const authService = {
     } finally {
       saveAuthUser(null)
     }
+  },
+  changePassword(input: ChangePasswordInput) {
+    return request<{ ok?: boolean }>("/api/auth/change-password", {
+      method: "POST",
+      body: input,
+    })
   },
 }

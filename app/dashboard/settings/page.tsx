@@ -42,7 +42,7 @@ const themeOptions: Array<{
 ]
 
 export default function SettingsPage() {
-  const [user, setUser] = useState(authService.getStoredUser())
+  const [user, setUser] = useState<ReturnType<typeof authService.getStoredUser>>(null)
   const [selectedTheme, setSelectedTheme] = useState<ThemeName>("forest-mono")
   const [isDarkMode, setIsDarkMode] = useState(false)
   const [currentPassword, setCurrentPassword] = useState("")

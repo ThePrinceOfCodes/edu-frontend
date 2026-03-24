@@ -55,7 +55,7 @@ const navItems = [
     title: "Students",
     url: "/dashboard/students",
     icon: Users,
-    internalOnly: false,
+    hideForInternal: true,
   },
   {
     title: "Attendance",

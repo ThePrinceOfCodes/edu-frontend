@@ -36,6 +36,11 @@ export interface School {
   schoolTypes?: string[]
   classes?: string[]
   address?: string
+  state?: string
+  localGovernment?: string
+  district?: string
+  longitude?: number
+  latitude?: number
   status?: "active" | "inactive"
 }
 
@@ -44,6 +49,11 @@ export interface CreateSchoolInput {
   schoolBoard?: string
   schoolTypes?: string[]
   address?: string
+  state?: string
+  localGovernment?: string
+  district?: string
+  longitude?: number
+  latitude?: number
   status?: "active" | "inactive"
 }
 

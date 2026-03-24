@@ -25,6 +25,11 @@ export default function SchoolsPage() {
   const [schoolBoard, setSchoolBoard] = useState("")
   const [selectedSchoolTypes, setSelectedSchoolTypes] = useState<string[]>([])
   const [address, setAddress] = useState("")
+  const [state, setState] = useState("")
+  const [localGovernment, setLocalGovernment] = useState("")
+  const [district, setDistrict] = useState("")
+  const [longitude, setLongitude] = useState("")
+  const [latitude, setLatitude] = useState("")
   const [loadError, setLoadError] = useState<string | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -79,12 +84,22 @@ export default function SchoolsPage() {
         schoolBoard: schoolBoard || undefined,
         schoolTypes: selectedSchoolTypes,
         address: address || undefined,
+        state: state || undefined,
+        localGovernment: localGovernment || undefined,
+        district: district || undefined,
+        longitude: longitude ? Number(longitude) : undefined,
+        latitude: latitude ? Number(latitude) : undefined,
       })
 
       setName("")
       setSchoolBoard("")
       setSelectedSchoolTypes([])
       setAddress("")
+      setState("")
+      setLocalGovernment("")
+      setDistrict("")
+      setLongitude("")
+      setLatitude("")
       setIsCreateOpen(false)
       await loadSchools()
     } catch (submitError) {
@@ -128,6 +143,52 @@ export default function SchoolsPage() {
                   value={address}
                   onChange={(event) => setAddress(event.target.value)}
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="school-state">State</Label>
+                <Input
+                  id="school-state"
+                  value={state}
+                  onChange={(event) => setState(event.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="school-lga">Local Government</Label>
+                <Input
+                  id="school-lga"
+                  value={localGovernment}
+                  onChange={(event) => setLocalGovernment(event.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="school-district">District</Label>
+                <Input
+                  id="school-district"
+                  value={district}
+                  onChange={(event) => setDistrict(event.target.value)}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="school-longitude">Longitude</Label>
+                  <Input
+                    id="school-longitude"
+                    type="number"
+                    step="any"
+                    value={longitude}
+                    onChange={(event) => setLongitude(event.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="school-latitude">Latitude</Label>
+                  <Input
+                    id="school-latitude"
+                    type="number"
+                    step="any"
+                    value={latitude}
+                    onChange={(event) => setLatitude(event.target.value)}
+                  />
+                </div>
               </div>
               <div className="space-y-2">
                 <Label>School Types (select one or more)</Label>
@@ -227,6 +288,11 @@ export default function SchoolsPage() {
                     <th className="px-3 py-2 font-medium">School Types</th>
                     <th className="px-3 py-2 font-medium">Classes</th>
                     <th className="px-3 py-2 font-medium">Address</th>
+                    <th className="px-3 py-2 font-medium">State</th>
+                    <th className="px-3 py-2 font-medium">LGA</th>
+                    <th className="px-3 py-2 font-medium">District</th>
+                    <th className="px-3 py-2 font-medium">Longitude</th>
+                    <th className="px-3 py-2 font-medium">Latitude</th>
                     <th className="px-3 py-2 font-medium">Status</th>
                     <th className="px-3 py-2 font-medium">ID</th>
                   </tr>
@@ -239,6 +305,11 @@ export default function SchoolsPage() {
                       <td className="px-3 py-2">{item.schoolTypes?.length ?? 0}</td>
                       <td className="px-3 py-2">{item.classes?.length ?? 0}</td>
                       <td className="px-3 py-2">{item.address || "-"}</td>
+                      <td className="px-3 py-2">{item.state || "-"}</td>
+                      <td className="px-3 py-2">{item.localGovernment || "-"}</td>
+                      <td className="px-3 py-2">{item.district || "-"}</td>
+                      <td className="px-3 py-2">{item.longitude ?? "-"}</td>
+                      <td className="px-3 py-2">{item.latitude ?? "-"}</td>
                       <td className="px-3 py-2">{item.status || "active"}</td>
                       <td className="px-3 py-2">{item._id ?? item.id ?? "-"}</td>
                     </tr>

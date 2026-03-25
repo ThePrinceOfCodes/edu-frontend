@@ -73,7 +73,7 @@ const navItems = [
     title: "School Boards",
     url: "/dashboard/school-boards",
     icon: Settings,
-    internalOnly: false,
+    showForInternal: true,
   },
   {
     title: "Classes",

@@ -8,7 +8,33 @@ import type { School, SchoolBoard } from "@/interfaces/resource-interface"
 import { resourceService } from "@/services/resource-service"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+"use client"
 
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react"
+import Link from "next/link"
+import { useParams } from "next/navigation"
+import * as XLSX from "xlsx"
+
+import type {
+  BulkCreateSchoolInput,
+  BulkImportSchoolsResult,
+  School,
+  SchoolBoard,
+  SchoolType,
+} from "@/interfaces/resource-interface"
+import { resourceService } from "@/services/resource-service"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+  Modal,
+  ModalContent,
+  ModalDescription,
+  ModalHeader,
+  ModalTitle,
+  ModalTrigger,
+} from "@/components/ui/modal"
 function getContactInfo(board: SchoolBoard | null) {
   if (!board?.superAdminUser || typeof board.superAdminUser === "string") {
     return {

@@ -19,6 +19,29 @@ import type {
   CreateInternalUserInput,
   UpdateInternalUserInput,
 } from "@/interfaces/resource-interface"
+import type {
+  BulkCreateSchoolsInput,
+  BulkImportSchoolsResult,
+  CreateSchoolBoardInput,
+  CreateSchoolInput,
+  CreateStaffInput,
+  CreateSchoolTypeInput,
+  CreateClassInput,
+  CreateStudentInput,
+  PromoteStudentInput,
+  BulkCreateStudentsInput,
+  AttendanceSummary,
+  PaginatedResponse,
+  School,
+  SchoolBoard,
+  SchoolType,
+  Class,
+  Student,
+  Staff,
+  InternalUser,
+  CreateInternalUserInput,
+  UpdateInternalUserInput,
+} from "@/interfaces/resource-interface"
 import { request } from "@/services/http"
 
 function toQueryString(params?: Record<string, string | number | undefined>) {
@@ -81,6 +104,14 @@ export const resourceService = {
   },
 
   getStaff() {
+      bulkCreateSchools(input: BulkCreateSchoolsInput) {
+        return request<BulkImportSchoolsResult>("/api/schools/bulk-import", {
+          method: "POST",
+          body: input,
+        })
+      },
+
+      getStaff() {
     return request<PaginatedResponse<Staff>>("/api/staff")
   },
   createStaff(input: CreateStaffInput) {

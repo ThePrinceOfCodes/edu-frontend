@@ -1,45 +1,24 @@
 import type {
-  CreateSchoolBoardInput,
-  CreateSchoolInput,
-  CreateStaffInput,
-  CreateSchoolTypeInput,
-  CreateClassInput,
-  CreateStudentInput,
-  PromoteStudentInput,
-  BulkCreateStudentsInput,
   AttendanceSummary,
-  PaginatedResponse,
-  School,
-  SchoolBoard,
-  SchoolType,
-  Class,
-  Student,
-  Staff,
-  InternalUser,
-  CreateInternalUserInput,
-  UpdateInternalUserInput,
-} from "@/interfaces/resource-interface"
-import type {
   BulkCreateSchoolsInput,
+  BulkCreateStudentsInput,
   BulkImportSchoolsResult,
+  Class,
+  CreateClassInput,
+  CreateInternalUserInput,
   CreateSchoolBoardInput,
   CreateSchoolInput,
-  CreateStaffInput,
   CreateSchoolTypeInput,
-  CreateClassInput,
+  CreateStaffInput,
   CreateStudentInput,
-  PromoteStudentInput,
-  BulkCreateStudentsInput,
-  AttendanceSummary,
+  InternalUser,
   PaginatedResponse,
+  PromoteStudentInput,
   School,
   SchoolBoard,
   SchoolType,
-  Class,
-  Student,
   Staff,
-  InternalUser,
-  CreateInternalUserInput,
+  Student,
   UpdateInternalUserInput,
 } from "@/interfaces/resource-interface"
 import { request } from "@/services/http"
@@ -102,16 +81,14 @@ export const resourceService = {
       body: input,
     })
   },
+  bulkCreateSchools(input: BulkCreateSchoolsInput) {
+    return request<BulkImportSchoolsResult>("/api/schools/bulk-import", {
+      method: "POST",
+      body: input,
+    })
+  },
 
   getStaff() {
-      bulkCreateSchools(input: BulkCreateSchoolsInput) {
-        return request<BulkImportSchoolsResult>("/api/schools/bulk-import", {
-          method: "POST",
-          body: input,
-        })
-      },
-
-      getStaff() {
     return request<PaginatedResponse<Staff>>("/api/staff")
   },
   createStaff(input: CreateStaffInput) {

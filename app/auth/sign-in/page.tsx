@@ -45,10 +45,11 @@ export default function SignInPage() {
   }
 
   return (
-    <div className="relative flex min-h-svh items-center justify-center overflow-hidden p-4">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,theme(colors.primary/.12),transparent_45%)]" />
-      <Card className="relative w-full max-w-md border-border/60 shadow-sm">
+    <div className="relative flex min-h-svh items-center justify-center bg-background p-4">
+      <div className="pointer-events-none absolute inset-0 bg-muted/20" />
+      <Card className="relative w-full max-w-md border-border bg-card shadow-none">
         <CardHeader className="space-y-2 text-center">
+          <p className="text-xs font-medium tracking-[0.24em] text-muted-foreground">EDT</p>
           <CardTitle className="text-2xl">Welcome back</CardTitle>
           <p className="text-sm text-muted-foreground">
             Sign in to continue to your learning dashboard.
@@ -91,9 +92,9 @@ export default function SignInPage() {
               {isSubmitting ? "Signing in..." : "Sign in"}
             </Button>
             <p className="text-center text-sm text-muted-foreground">
-              Don&apos;t have an account?{" "}
-              <Link href="/auth/sign-up" className="text-foreground underline">
-                Sign up
+              Need access for your organization?{" "}
+              <Link href="/auth/request-access" className="text-foreground underline">
+                Submit intent
               </Link>
             </p>
           </form>

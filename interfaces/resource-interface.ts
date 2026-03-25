@@ -13,6 +13,17 @@ export interface SchoolBoard {
   code?: string
   description?: string
   status?: "active" | "inactive"
+  createdAt?: string
+  updatedAt?: string
+  superAdminUser?:
+    | string
+    | {
+        id?: string
+        _id?: string
+        name?: string
+        email?: string
+        phoneNumber?: string | null
+      }
 }
 
 export interface CreateSchoolBoardInput {

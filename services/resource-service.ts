@@ -44,15 +44,34 @@ export const resourceService = {
   getSchoolBoards() {
     return request<PaginatedResponse<SchoolBoard>>("/api/school-boards")
   },
+  getSchoolBoardById(schoolBoardId: string) {
+    return request<SchoolBoard>(`/api/school-boards/${schoolBoardId}`)
+  },
   createSchoolBoard(input: CreateSchoolBoardInput) {
     return request<SchoolBoard>("/api/school-boards", {
       method: "POST",
       body: input,
     })
   },
+  updateSchoolBoard(schoolBoardId: string, input: Partial<CreateSchoolBoardInput>) {
+    return request<SchoolBoard>(`/api/school-boards/${schoolBoardId}`, {
+      method: "PATCH",
+      body: input,
+    })
+  },
+  deleteSchoolBoard(schoolBoardId: string) {
+    return request<Record<string, never>>(`/api/school-boards/${schoolBoardId}`, {
+      method: "DELETE",
+    })
+  },
 
-  getSchools() {
-    return request<PaginatedResponse<School>>("/api/schools")
+  getSchools(params?: {
+    limit?: number
+    page?: number
+    schoolBoard?: string
+    status?: "active" | "inactive"
+  }) {
+    return request<PaginatedResponse<School>>(`/api/schools${toQueryString(params)}`)
   },
   createSchool(input: CreateSchoolInput) {
     return request<School>("/api/schools", {

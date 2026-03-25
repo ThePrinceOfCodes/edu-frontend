@@ -58,30 +58,6 @@ export interface School {
 export interface CreateSchoolInput {
   name: string
   schoolBoard?: string
-  export interface BulkCreateSchoolInput {
-    name: string
-    schoolBoard?: string
-    address?: string
-    state?: string
-    localGovernment?: string
-    district?: string
-    longitude?: number
-    latitude?: number
-    status?: "active" | "inactive"
-  }
-
-  export interface BulkCreateSchoolsInput {
-    schools: BulkCreateSchoolInput[]
-  }
-
-  export interface BulkImportSchoolsResult {
-    total: number
-    createdCount: number
-    failedCount: number
-    created: School[]
-    failed: Array<{ row: number; name?: string; reason: string }>
-  }
-
   schoolTypes?: string[]
   address?: string
   state?: string
@@ -90,6 +66,30 @@ export interface CreateSchoolInput {
   longitude?: number
   latitude?: number
   status?: "active" | "inactive"
+}
+
+export interface BulkCreateSchoolInput {
+  name: string
+  schoolBoard?: string
+  address?: string
+  state?: string
+  localGovernment?: string
+  district?: string
+  longitude?: number
+  latitude?: number
+  status?: "active" | "inactive"
+}
+
+export interface BulkCreateSchoolsInput {
+  schools: BulkCreateSchoolInput[]
+}
+
+export interface BulkImportSchoolsResult {
+  total: number
+  createdCount: number
+  failedCount: number
+  created: School[]
+  failed: Array<{ row: number; name?: string; reason: string }>
 }
 
 export interface Staff {

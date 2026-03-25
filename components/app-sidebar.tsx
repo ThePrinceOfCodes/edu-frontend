@@ -76,6 +76,12 @@ const navItems = [
     showForInternal: true,
   },
   {
+    title: "Terms",
+    url: "/dashboard/terms",
+    icon: CalendarDays,
+    internalOnly: false,
+  },
+  {
     title: "Classes",
     url: "/dashboard/classes",
     icon: Layers,

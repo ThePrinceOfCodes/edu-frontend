@@ -1,4 +1,5 @@
 import type {
+  AcademicSession,
   AttendanceSummary,
   BulkCreateSchoolsInput,
   BulkCreateStudentsInput,
@@ -11,6 +12,7 @@ import type {
   CreateSchoolTypeInput,
   CreateStaffInput,
   CreateStudentInput,
+  CreateTermInput,
   InternalUser,
   PaginatedResponse,
   PromoteStudentInput,
@@ -19,7 +21,9 @@ import type {
   SchoolType,
   Staff,
   Student,
+  Term,
   UpdateInternalUserInput,
+  UpdateTermInput,
 } from "@/interfaces/resource-interface"
 import { request } from "@/services/http"
 
@@ -147,6 +151,39 @@ export const resourceService = {
   },
   getAttendanceSummary(params?: { school?: string; termId?: string }) {
     return request<AttendanceSummary>(`/api/attendance/summary${toQueryString(params)}`)
+  },
+
+  getAcademicSessions(params?: { limit?: number; page?: number; schoolBoard?: string }) {
+    return request<PaginatedResponse<AcademicSession>>(
+      `/api/academic-sessions${toQueryString(params)}`
+    )
+  },
+  getTerms(params?: {
+    limit?: number
+    page?: number
+    academicSessionId?: string
+    schoolBoard?: string
+    school?: string
+    isActive?: boolean
+  }) {
+    return request<PaginatedResponse<Term>>(`/api/terms${toQueryString(params)}`)
+  },
+  createTerm(input: CreateTermInput) {
+    return request<Term>("/api/terms", {
+      method: "POST",
+      body: input,
+    })
+  },
+  updateTerm(termId: string, input: UpdateTermInput) {
+    return request<Term>(`/api/terms/${termId}`, {
+      method: "PATCH",
+      body: input,
+    })
+  },
+  deleteTerm(termId: string) {
+    return request<Record<string, never>>(`/api/terms/${termId}`, {
+      method: "DELETE",
+    })
   },
 
   getUsers(params?: { limit?: number; page?: number; accountType?: string; role?: string }) {

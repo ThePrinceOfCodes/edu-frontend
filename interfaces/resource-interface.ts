@@ -143,6 +143,47 @@ export interface CreateClassInput {
   schoolTypeId: string
 }
 
+export interface AcademicSession {
+  id?: string
+  _id?: string
+  name?: string | null
+  startYear: number
+  endYear: number
+  schoolBoard: string
+  isActive?: boolean
+}
+
+export interface Term {
+  id?: string
+  _id?: string
+  name: string
+  termName: string
+  academicSessionId: string
+  schoolBoard: string
+  school?: string | null
+  startDate: string
+  endDate: string
+  isActive?: boolean
+}
+
+export interface CreateTermInput {
+  termName: string
+  academicSessionId: string
+  schoolBoard?: string
+  school?: string
+  startDate: string
+  endDate: string
+  isActive?: boolean
+}
+
+export interface UpdateTermInput {
+  termName?: string
+  school?: string
+  startDate?: string
+  endDate?: string
+  isActive?: boolean
+}
+
 export type InternalUserRole = "super-admin" | "admin"
 
 export const INTERNAL_USER_PERMISSIONS = [

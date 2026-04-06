@@ -11,6 +11,7 @@ import {
   LayoutDashboard,
   Layers,
   LogOut,
+  MessageSquare,
   User,
   Settings,
   Users,
@@ -86,6 +87,12 @@ const navItems = [
     url: "/dashboard/classes",
     icon: Layers,
     hideForInternal: true,
+  },
+  {
+    title: "Messaging",
+    url: "/dashboard/messaging",
+    icon: MessageSquare,
+    internalOnly: false,
   },
 ]
 

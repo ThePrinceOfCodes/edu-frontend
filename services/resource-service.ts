@@ -234,10 +234,14 @@ export const resourceService = {
       `/api/messages/threads/${threadId}/messages${toQueryString(params)}`
     )
   },
-  sendThreadMessage(threadId: string, content: string) {
+  sendThreadMessage(
+    threadId: string,
+    content: string,
+    attachments?: Array<{ name: string; url: string; type?: string; size?: number }>
+  ) {
     return request<Message>(`/api/messages/threads/${threadId}/messages`, {
       method: "POST",
-      body: { content },
+      body: { content, attachments },
     })
   },
 

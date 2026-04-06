@@ -368,6 +368,12 @@ export interface Message {
   thread: string
   sender: string
   content: string
+  attachments?: Array<{
+    name: string
+    url: string
+    type?: string
+    size?: number
+  }>
   createdAt?: string
   updatedAt?: string
 }

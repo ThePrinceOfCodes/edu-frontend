@@ -8,6 +8,7 @@ import {
   BookOpen,
   ChevronUp,
   CalendarDays,
+  CalendarRange,
   LayoutDashboard,
   Layers,
   LogOut,
@@ -92,6 +93,12 @@ const navItems = [
     title: "Messaging",
     url: "/dashboard/messaging",
     icon: MessageSquare,
+    internalOnly: false,
+  },
+  {
+    title: "Events",
+    url: "/dashboard/events",
+    icon: CalendarRange,
     internalOnly: false,
   },
 ]

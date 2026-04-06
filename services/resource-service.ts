@@ -6,6 +6,7 @@ import type {
   BulkImportSchoolsResult,
   Class,
   CreateClassInput,
+  CreateEventInput,
   CreateInternalUserInput,
   CreateSchoolBoardInput,
   CreateSchoolInput,
@@ -21,10 +22,12 @@ import type {
   PromoteStudentInput,
   School,
   SchoolBoard,
+  SchoolEvent,
   SchoolType,
   Staff,
   Student,
   Term,
+  UpdateEventInput,
   UpdateSchoolInput,
   UpdateInternalUserInput,
   UpdateTermInput,
@@ -270,6 +273,33 @@ export const resourceService = {
   },
   deleteUser(userId: string) {
     return request<InternalUser>(`/api/users/${userId}`, {
+      method: "DELETE",
+    })
+  },
+
+  getEvents(params?: {
+    limit?: number
+    page?: number
+    school?: string
+    startDate?: string
+    endDate?: string
+  }) {
+    return request<PaginatedResponse<SchoolEvent>>(`/api/events${toQueryString(params)}`)
+  },
+  createEvent(input: CreateEventInput) {
+    return request<SchoolEvent>("/api/events", {
+      method: "POST",
+      body: input,
+    })
+  },
+  updateEvent(eventId: string, input: UpdateEventInput) {
+    return request<SchoolEvent>(`/api/events/${eventId}`, {
+      method: "PATCH",
+      body: input,
+    })
+  },
+  deleteEvent(eventId: string) {
+    return request<Record<string, never>>(`/api/events/${eventId}`, {
       method: "DELETE",
     })
   },

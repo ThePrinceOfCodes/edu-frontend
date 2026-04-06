@@ -383,3 +383,39 @@ export interface CreateMessageThreadInput {
   participantIds?: string[]
   isBroadcast?: boolean
 }
+
+export interface SchoolEvent {
+  id?: string
+  _id?: string
+  title: string
+  description?: string | null
+  startDate: string
+  endDate?: string | null
+  allDay?: boolean
+  schoolBoard?: string | null
+  school?: string | null
+  color?: string | null
+  createdBy?: string
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface CreateEventInput {
+  title: string
+  description?: string
+  startDate: string
+  endDate?: string
+  allDay?: boolean
+  school?: string
+  color?: string
+}
+
+export interface UpdateEventInput {
+  title?: string
+  description?: string | null
+  startDate?: string
+  endDate?: string | null
+  allDay?: boolean
+  school?: string | null
+  color?: string | null
+}

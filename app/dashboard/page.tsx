@@ -1,93 +1,535 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import Link from "next/link"
+import { useEffect, useMemo, useState } from "react"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import type {
+  AcademicSession,
+  Message,
+  MessageThread,
+  School,
+  Staff,
+  Term,
+} from "@/interfaces/resource-interface"
+import { authService } from "@/services/auth-service"
 import { resourceService } from "@/services/resource-service"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 
 export default function DashboardPage() {
-  const [staffCount, setStaffCount] = useState<number | null>(null)
-  const [schoolCount, setSchoolCount] = useState<number | null>(null)
-  const [schoolBoardCount, setSchoolBoardCount] = useState<number | null>(null)
+  const authUser = authService.getStoredUser()
+  const schoolBoardId = authUser?.schoolBoardId || undefined
+
+  const [activeTab, setActiveTab] = useState<"summary" | "notifications">("summary")
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
+
+  const [schools, setSchools] = useState<School[]>([])
+  const [staff, setStaff] = useState<Staff[]>([])
+  const [terms, setTerms] = useState<Term[]>([])
+  const [sessions, setSessions] = useState<AcademicSession[]>([])
+
+  const [selectedTermId, setSelectedTermId] = useState("")
+  const [attendanceBySchool, setAttendanceBySchool] = useState<Array<{ schoolId: string; schoolName: string; percentage: number }>>([])
+  const [attendanceLoading, setAttendanceLoading] = useState(false)
+
+  const [threads, setThreads] = useState<MessageThread[]>([])
+  const [selectedThreadId, setSelectedThreadId] = useState("")
+  const [messages, setMessages] = useState<Message[]>([])
+  const [messagesLoading, setMessagesLoading] = useState(false)
+
+  const [newThreadType, setNewThreadType] = useState<"general" | "particular">("particular")
+  const [newThreadTitle, setNewThreadTitle] = useState("")
+  const [newThreadParticipantIds, setNewThreadParticipantIds] = useState<string[]>([])
+  const [newMessageContent, setNewMessageContent] = useState("")
+  const [threadError, setThreadError] = useState<string | null>(null)
+  const [messageError, setMessageError] = useState<string | null>(null)
+
+  const selectedTerm = useMemo(() => terms.find((item) => (item._id ?? item.id) === selectedTermId) || null, [terms, selectedTermId])
+  const selectedSession = useMemo(
+    () => sessions.find((item) => (item._id ?? item.id) === selectedTerm?.academicSessionId) || null,
+    [sessions, selectedTerm?.academicSessionId]
+  )
+
+  const overallAttendance = useMemo(() => {
+    if (attendanceBySchool.length === 0) {
+      return 0
+    }
+
+    const total = attendanceBySchool.reduce((sum, item) => sum + item.percentage, 0)
+    return Number((total / attendanceBySchool.length).toFixed(2))
+  }, [attendanceBySchool])
+
+  const schoolsWithLowAttendance = useMemo(
+    () => attendanceBySchool.filter((item) => item.percentage < 70).length,
+    [attendanceBySchool]
+  )
+
+  const existingUsersForParticularMessage = useMemo(() => {
+    const users = staff
+      .map((item) => {
+        const user = item.user
+        if (!user) {
+          return null
+        }
+
+        if (typeof user === "string") {
+          return { id: user, name: user }
+        }
+
+        const id = user._id ?? user.id
+        if (!id) {
+          return null
+        }
+
+        return {
+          id,
+          name: user.name || user.email || id,
+        }
+      })
+      .filter((item): item is { id: string; name: string } => Boolean(item))
+
+    const unique = new Map<string, { id: string; name: string }>()
+    users.forEach((item) => unique.set(item.id, item))
+    return [...unique.values()]
+  }, [staff])
 
   useEffect(() => {
-    async function loadCounts() {
+    async function loadDashboard() {
+      setLoading(true)
+      setLoadError(null)
+
       try {
-        const [staff, schools, schoolBoards] = await Promise.all([
-          resourceService.getStaff(),
-          resourceService.getSchools(),
-          resourceService.getSchoolBoards(),
+        const [schoolsResult, staffResult, termsResult, sessionsResult, threadsResult] = await Promise.all([
+          resourceService.getSchools({ schoolBoard: schoolBoardId, limit: 200, page: 1 }),
+          resourceService.getStaff({ schoolBoard: schoolBoardId, limit: 200, page: 1 }),
+          resourceService.getTerms({ schoolBoard: schoolBoardId, limit: 200, page: 1 }),
+          resourceService.getAcademicSessions({ schoolBoard: schoolBoardId, limit: 200, page: 1 }),
+          resourceService.getMessageThreads({ limit: 200, page: 1 }),
         ])
 
-        setStaffCount(staff.totalResults)
-        setSchoolCount(schools.totalResults)
-        setSchoolBoardCount(schoolBoards.totalResults)
-      } catch {
-        setStaffCount(0)
-        setSchoolCount(0)
-        setSchoolBoardCount(0)
+        const schoolsList = schoolsResult.results || []
+        const termsList = termsResult.results || []
+
+        setSchools(schoolsList)
+        setStaff(staffResult.results || [])
+        setTerms(termsList)
+        setSessions(sessionsResult.results || [])
+        setThreads(threadsResult.results || [])
+
+        let defaultTermId = selectedTermId
+        if (!defaultTermId) {
+          const activeTerm = termsList.find((item) => Boolean(item.isActive))
+          defaultTermId = (activeTerm?._id ?? activeTerm?.id ?? "")
+        }
+        setSelectedTermId(defaultTermId)
+      } catch (error) {
+        setLoadError(error instanceof Error ? error.message : "Unable to load dashboard.")
+      } finally {
+        setLoading(false)
       }
     }
 
-    void loadCounts()
-  }, [])
+    void loadDashboard()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [schoolBoardId])
+
+  useEffect(() => {
+    async function loadAttendance() {
+      if (!selectedTermId || schools.length === 0) {
+        setAttendanceBySchool([])
+        return
+      }
+
+      setAttendanceLoading(true)
+
+      try {
+        const results = await Promise.all(
+          schools.map(async (school) => {
+            const schoolId = school._id ?? school.id
+            if (!schoolId) {
+              return null
+            }
+
+            const summary = await resourceService.getAttendanceSummary({
+              school: schoolId,
+              termId: selectedTermId,
+            })
+
+            const rows = summary.rows || []
+            const avg = rows.length
+              ? Number((rows.reduce((sum, row) => sum + row.attendancePercentage, 0) / rows.length).toFixed(2))
+              : 0
+
+            return {
+              schoolId,
+              schoolName: school.name,
+              percentage: avg,
+            }
+          })
+        )
+
+        setAttendanceBySchool(results.filter((item): item is { schoolId: string; schoolName: string; percentage: number } => Boolean(item)))
+      } catch {
+        setAttendanceBySchool([])
+      } finally {
+        setAttendanceLoading(false)
+      }
+    }
+
+    void loadAttendance()
+  }, [schools, selectedTermId])
+
+  useEffect(() => {
+    async function loadThreadMessages() {
+      if (!selectedThreadId) {
+        setMessages([])
+        return
+      }
+
+      setMessagesLoading(true)
+      setMessageError(null)
+
+      try {
+        const result = await resourceService.getThreadMessages(selectedThreadId, { limit: 500, page: 1 })
+        setMessages(result.results || [])
+      } catch (error) {
+        setMessageError(error instanceof Error ? error.message : "Unable to load messages.")
+      } finally {
+        setMessagesLoading(false)
+      }
+    }
+
+    void loadThreadMessages()
+  }, [selectedThreadId])
+
+  async function handleCreateThread() {
+    setThreadError(null)
+
+    try {
+      const created = await resourceService.createMessageThread({
+        title: newThreadTitle || undefined,
+        isBroadcast: newThreadType === "general",
+        participantIds: newThreadType === "particular" ? newThreadParticipantIds : undefined,
+      })
+
+      const createdId = created._id ?? created.id ?? ""
+
+      const refreshed = await resourceService.getMessageThreads({ limit: 200, page: 1 })
+      setThreads(refreshed.results || [])
+
+      setNewThreadTitle("")
+      setNewThreadParticipantIds([])
+      if (createdId) {
+        setSelectedThreadId(createdId)
+      }
+    } catch (error) {
+      setThreadError(error instanceof Error ? error.message : "Unable to create conversation.")
+    }
+  }
+
+  async function handleSendMessage() {
+    if (!selectedThreadId || !newMessageContent.trim()) {
+      return
+    }
+
+    setMessageError(null)
+
+    try {
+      await resourceService.sendThreadMessage(selectedThreadId, newMessageContent)
+      const refreshed = await resourceService.getThreadMessages(selectedThreadId, { limit: 500, page: 1 })
+      setMessages(refreshed.results || [])
+      setNewMessageContent("")
+    } catch (error) {
+      setMessageError(error instanceof Error ? error.message : "Unable to send message.")
+    }
+  }
 
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-2xl font-semibold tracking-tight">Welcome back</h2>
-        <p className="text-sm text-muted-foreground">
-          Here is a snapshot of your education platform today.
-        </p>
-      </div>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-2xl font-semibold tracking-tight">School Board Admin Dashboard</h2>
+          <p className="text-sm text-muted-foreground">
+            Board-wide overview with term-based metrics, attendance health, and messaging.
+          </p>
+        </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card className="min-w-[320px]">
           <CardHeader>
-            <CardTitle className="text-sm font-medium">Staff</CardTitle>
+            <CardTitle className="text-sm">Current Term & Academic Session</CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{staffCount ?? "..."}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium">Schools</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{schoolCount ?? "..."}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium">School Boards</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{schoolBoardCount ?? "..."}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium">API Version</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">v1</p>
+          <CardContent className="space-y-2">
+            <Label htmlFor="dashboard-term">Select Term</Label>
+            <select
+              id="dashboard-term"
+              className="h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm"
+              value={selectedTermId}
+              onChange={(event) => setSelectedTermId(event.target.value)}
+            >
+              <option value="">Select term</option>
+              {terms.map((term) => {
+                const id = term._id ?? term.id ?? ""
+                return (
+                  <option key={id} value={id}>
+                    {term.name}
+                    {term.isActive ? " (active)" : ""}
+                  </option>
+                )
+              })}
+            </select>
+            <p className="text-xs text-muted-foreground">
+              Session: {selectedSession ? `${selectedSession.startYear}/${selectedSession.endYear}` : "-"}
+            </p>
           </CardContent>
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Connected Modules</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ul className="space-y-2 text-sm text-muted-foreground">
-            <li>• School Boards module connected</li>
-            <li>• Schools module connected</li>
-            <li>• Staff module connected</li>
-          </ul>
-        </CardContent>
-      </Card>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          className={`rounded-md border px-3 py-1.5 text-sm ${activeTab === "summary" ? "bg-accent" : ""}`}
+          onClick={() => setActiveTab("summary")}
+        >
+          Summary
+        </button>
+        <button
+          type="button"
+          className={`rounded-md border px-3 py-1.5 text-sm ${activeTab === "notifications" ? "bg-accent" : ""}`}
+          onClick={() => setActiveTab("notifications")}
+        >
+          Notifications
+        </button>
+      </div>
+
+      {loadError ? <p className="text-sm text-destructive">{loadError}</p> : null}
+      {loading ? <p className="text-sm text-muted-foreground">Loading dashboard...</p> : null}
+
+      {!loading && activeTab === "summary" ? (
+        <>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">Schools</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-semibold">{schools.length}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">Staff</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-semibold">{staff.length}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">Overall Attendance</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-semibold">{overallAttendance}%</p>
+                <p className="text-xs text-muted-foreground">Based on selected term</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">Low Attendance Schools</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-semibold">{schoolsWithLowAttendance}</p>
+                <p className="text-xs text-muted-foreground">Below 70% average</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Overall Attendance Chart (All Schools)</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {attendanceLoading ? (
+                <p className="text-sm text-muted-foreground">Loading attendance chart...</p>
+              ) : attendanceBySchool.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No attendance data for the selected term.</p>
+              ) : (
+                attendanceBySchool.map((item) => (
+                  <div key={item.schoolId} className="space-y-1">
+                    <div className="flex items-center justify-between text-sm">
+                      <span>{item.schoolName}</span>
+                      <span>{item.percentage}%</span>
+                    </div>
+                    <div className="h-2 rounded bg-muted">
+                      <div className="h-2 rounded bg-primary" style={{ width: `${Math.min(item.percentage, 100)}%` }} />
+                    </div>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Quick Actions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-2">
+                <QuickLink href="/dashboard/schools">Manage Schools</QuickLink>
+                <QuickLink href="/dashboard/staff">Manage Staff</QuickLink>
+                <QuickLink href="/dashboard/students">Manage Students</QuickLink>
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      ) : null}
+
+      {!loading && activeTab === "notifications" ? (
+        <div className="grid gap-4 lg:grid-cols-3">
+          <Card className="lg:col-span-1">
+            <CardHeader>
+              <CardTitle>New Conversation</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="space-y-2">
+                <Label htmlFor="thread-type">Message Type</Label>
+                <select
+                  id="thread-type"
+                  className="h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm"
+                  value={newThreadType}
+                  onChange={(event) => {
+                    setNewThreadType(event.target.value as "general" | "particular")
+                    setNewThreadParticipantIds([])
+                  }}
+                >
+                  <option value="particular">Particular Message</option>
+                  <option value="general">General (Broadcast)</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="thread-title">Title (optional)</Label>
+                <Input
+                  id="thread-title"
+                  value={newThreadTitle}
+                  onChange={(event) => setNewThreadTitle(event.target.value)}
+                  placeholder="Subject"
+                />
+              </div>
+
+              {newThreadType === "particular" ? (
+                <div className="space-y-2">
+                  <Label>Select Users</Label>
+                  <div className="max-h-40 space-y-2 overflow-y-auto rounded-md border p-2">
+                    {existingUsersForParticularMessage.map((user) => (
+                      <label key={user.id} className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={newThreadParticipantIds.includes(user.id)}
+                          onChange={(event) => {
+                            if (event.target.checked) {
+                              setNewThreadParticipantIds((current) => [...new Set([...current, user.id])])
+                              return
+                            }
+
+                            setNewThreadParticipantIds((current) => current.filter((item) => item !== user.id))
+                          }}
+                        />
+                        <span>{user.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {threadError ? <p className="text-sm text-destructive">{threadError}</p> : null}
+
+              <button
+                type="button"
+                onClick={() => void handleCreateThread()}
+                className="rounded-md border px-3 py-1.5 text-sm hover:bg-accent"
+              >
+                Start Conversation
+              </button>
+            </CardContent>
+          </Card>
+
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle>Messages</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="space-y-2">
+                <Label htmlFor="thread-select">Conversation</Label>
+                <select
+                  id="thread-select"
+                  className="h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm"
+                  value={selectedThreadId}
+                  onChange={(event) => setSelectedThreadId(event.target.value)}
+                >
+                  <option value="">Select conversation</option>
+                  {threads.map((thread) => {
+                    const id = thread._id ?? thread.id ?? ""
+                    return (
+                      <option key={id} value={id}>
+                        {thread.title || (thread.isBroadcast ? "Broadcast Message" : "Direct Message")}
+                      </option>
+                    )
+                  })}
+                </select>
+              </div>
+
+              <div className="max-h-72 space-y-2 overflow-y-auto rounded-md border p-3">
+                {messagesLoading ? (
+                  <p className="text-sm text-muted-foreground">Loading messages...</p>
+                ) : messages.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No messages yet.</p>
+                ) : (
+                  messages.map((message) => {
+                    const id = message._id ?? message.id ?? `${message.sender}-${message.createdAt}`
+                    return (
+                      <div key={id} className="rounded-md bg-muted p-2 text-sm">
+                        <p className="text-xs text-muted-foreground">Sender: {message.sender}</p>
+                        <p>{message.content}</p>
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="new-message">New Message</Label>
+                <Input
+                  id="new-message"
+                  value={newMessageContent}
+                  onChange={(event) => setNewMessageContent(event.target.value)}
+                  placeholder="Type your message"
+                />
+              </div>
+
+              {messageError ? <p className="text-sm text-destructive">{messageError}</p> : null}
+
+              <button
+                type="button"
+                onClick={() => void handleSendMessage()}
+                className="rounded-md border px-3 py-1.5 text-sm hover:bg-accent"
+                disabled={!selectedThreadId || !newMessageContent.trim()}
+              >
+                Send Message
+              </button>
+            </CardContent>
+          </Card>
+        </div>
+      ) : null}
     </div>
+  )
+}
+
+function QuickLink({ href, children }: { href: string; children: string }) {
+  return (
+    <Link href={href} className="inline-flex items-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent">
+      {children}
+    </Link>
   )
 }

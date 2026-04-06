@@ -13,7 +13,10 @@ import type {
   CreateStaffInput,
   CreateStudentInput,
   CreateTermInput,
+  CreateMessageThreadInput,
   InternalUser,
+  Message,
+  MessageThread,
   PaginatedResponse,
   PromoteStudentInput,
   School,
@@ -211,6 +214,30 @@ export const resourceService = {
   deleteTerm(termId: string) {
     return request<Record<string, never>>(`/api/terms/${termId}`, {
       method: "DELETE",
+    })
+  },
+  getActiveTerm(params?: { school?: string }) {
+    return request<Term>(`/api/terms/active${toQueryString(params)}`)
+  },
+
+  getMessageThreads(params?: { limit?: number; page?: number; sortBy?: string }) {
+    return request<PaginatedResponse<MessageThread>>(`/api/messages/threads${toQueryString(params)}`)
+  },
+  createMessageThread(input: CreateMessageThreadInput) {
+    return request<MessageThread>("/api/messages/threads", {
+      method: "POST",
+      body: input,
+    })
+  },
+  getThreadMessages(threadId: string, params?: { limit?: number; page?: number; sortBy?: string }) {
+    return request<PaginatedResponse<Message>>(
+      `/api/messages/threads/${threadId}/messages${toQueryString(params)}`
+    )
+  },
+  sendThreadMessage(threadId: string, content: string) {
+    return request<Message>(`/api/messages/threads/${threadId}/messages`, {
+      method: "POST",
+      body: { content },
     })
   },
 

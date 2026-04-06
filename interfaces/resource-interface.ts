@@ -349,3 +349,31 @@ export interface AttendanceSummary {
   days: AttendanceDay[]
   rows: AttendanceSummaryRow[]
 }
+
+export interface MessageThread {
+  id?: string
+  _id?: string
+  title?: string | null
+  schoolBoard?: string | null
+  createdBy: string
+  participants: string[]
+  isBroadcast?: boolean
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface Message {
+  id?: string
+  _id?: string
+  thread: string
+  sender: string
+  content: string
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface CreateMessageThreadInput {
+  title?: string
+  participantIds?: string[]
+  isBroadcast?: boolean
+}

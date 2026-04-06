@@ -31,7 +31,9 @@ export default function DashboardPage() {
   const [sessions, setSessions] = useState<AcademicSession[]>([])
 
   const [selectedTermId, setSelectedTermId] = useState("")
-  const [attendanceBySchool, setAttendanceBySchool] = useState<Array<{ schoolId: string; schoolName: string; percentage: number }>>([])
+  const [attendanceBySchool, setAttendanceBySchool] = useState<
+    Array<{ schoolId: string; schoolName: string; percentage: number; studentCount: number }>
+  >([])
   const [attendanceLoading, setAttendanceLoading] = useState(false)
 
   const [threads, setThreads] = useState<MessageThread[]>([])
@@ -63,6 +65,11 @@ export default function DashboardPage() {
 
   const schoolsWithLowAttendance = useMemo(
     () => attendanceBySchool.filter((item) => item.percentage < 70).length,
+    [attendanceBySchool]
+  )
+
+  const trackedStudentsCount = useMemo(
+    () => attendanceBySchool.reduce((sum, item) => sum + item.studentCount, 0),
     [attendanceBySchool]
   )
 
@@ -166,11 +173,23 @@ export default function DashboardPage() {
               schoolId,
               schoolName: school.name,
               percentage: avg,
+              studentCount: rows.length,
             }
           })
         )
 
-        setAttendanceBySchool(results.filter((item): item is { schoolId: string; schoolName: string; percentage: number } => Boolean(item)))
+        setAttendanceBySchool(
+          results.filter(
+            (
+              item
+            ): item is {
+              schoolId: string
+              schoolName: string
+              percentage: number
+              studentCount: number
+            } => Boolean(item)
+          )
+        )
       } catch {
         setAttendanceBySchool([])
       } finally {
@@ -311,18 +330,20 @@ export default function DashboardPage() {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm">Schools</CardTitle>
+                <CardTitle className="text-sm">Schools Reporting Attendance</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-2xl font-semibold">{schools.length}</p>
+                <p className="text-2xl font-semibold">{attendanceBySchool.length}</p>
+                <p className="text-xs text-muted-foreground">Selected term</p>
               </CardContent>
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm">Staff</CardTitle>
+                <CardTitle className="text-sm">Students Tracked</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-2xl font-semibold">{staff.length}</p>
+                <p className="text-2xl font-semibold">{trackedStudentsCount}</p>
+                <p className="text-xs text-muted-foreground">Selected term</p>
               </CardContent>
             </Card>
             <Card>

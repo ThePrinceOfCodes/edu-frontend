@@ -22,6 +22,7 @@ import type {
   Staff,
   Student,
   Term,
+  UpdateSchoolInput,
   UpdateInternalUserInput,
   UpdateTermInput,
 } from "@/interfaces/resource-interface"
@@ -83,6 +84,26 @@ export const resourceService = {
     return request<School>("/api/schools", {
       method: "POST",
       body: input,
+    })
+  },
+  getSchoolById(schoolId: string) {
+    return request<School>(`/api/schools/${schoolId}`)
+  },
+  updateSchool(schoolId: string, input: UpdateSchoolInput) {
+    return request<School>(`/api/schools/${schoolId}`, {
+      method: "PATCH",
+      body: input,
+    })
+  },
+  deactivateSchool(schoolId: string) {
+    return request<School>(`/api/schools/${schoolId}`, {
+      method: "PATCH",
+      body: { status: "inactive" },
+    })
+  },
+  deleteSchool(schoolId: string) {
+    return request<Record<string, never>>(`/api/schools/${schoolId}`, {
+      method: "DELETE",
     })
   },
   bulkCreateSchools(input: BulkCreateSchoolsInput) {

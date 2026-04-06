@@ -28,6 +28,8 @@ const toDateInputValue = (value: string) => {
 
 export default function TermsPage() {
   const authUser = authService.getStoredUser()
+  const canViewTerms = authUser?.role === "school-board-admin" || authUser?.role === "school-admin"
+  const canCreateTerm = canViewTerms
   const canSetSchoolScope =
     authUser?.accountType === "internal" || authUser?.role === "school-board-admin"
 
@@ -210,111 +212,124 @@ export default function TermsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Terms</h2>
-        <Modal open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-          <ModalTrigger render={<Button />}>Create Term</ModalTrigger>
-          <ModalContent>
-            <ModalHeader>
-              <ModalTitle>Create Term</ModalTitle>
-              <ModalDescription>
-                Name is generated automatically as Academic Year + Term Name + Date Range.
-              </ModalDescription>
-            </ModalHeader>
-            <form className="space-y-3" onSubmit={handleCreate}>
-              <div className="space-y-2">
-                <Label htmlFor="term-name">Term Name</Label>
-                <Input
-                  id="term-name"
-                  value={createTermName}
-                  onChange={(event) => setCreateTermName(event.target.value)}
-                  placeholder="First Term"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="term-academic-session">Academic Session</Label>
-                <select
-                  id="term-academic-session"
-                  className="h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm"
-                  value={createAcademicSessionId}
-                  onChange={(event) => setCreateAcademicSessionId(event.target.value)}
-                  required
-                >
-                  <option value="">Select academic session</option>
-                  {academicSessions.map((session) => {
-                    const sessionId = session._id ?? session.id
-
-                    if (!sessionId) {
-                      return null
-                    }
-
-                    return (
-                      <option key={sessionId} value={sessionId}>
-                        {academicSessionLabelById.get(sessionId) ?? sessionId}
-                      </option>
-                    )
-                  })}
-                </select>
-              </div>
-
-              {canSetSchoolScope ? (
+      {!canViewTerms ? (
+        <div className="rounded-md border border-destructive/50 bg-destructive/10 p-4">
+          <p className="text-sm text-destructive">
+            You do not have permission to view terms. Only school board admins and school admins can access this section.
+          </p>
+        </div>
+      ) : null}
+      {canViewTerms ? (
+        <>
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Terms</h2>
+            {canCreateTerm ? (
+          <Modal open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+            <ModalTrigger render={<Button />}>Create Term</ModalTrigger>
+            <ModalContent>
+              <ModalHeader>
+                <ModalTitle>Create Term</ModalTitle>
+                <ModalDescription>
+                  Name is generated automatically as Academic Year + Term Name + Date Range.
+                </ModalDescription>
+              </ModalHeader>
+              <form className="space-y-3" onSubmit={handleCreate}>
                 <div className="space-y-2">
-                  <Label htmlFor="term-school-id">School ID (optional)</Label>
+                  <Label htmlFor="term-name">Term Name</Label>
                   <Input
-                    id="term-school-id"
-                    value={createSchoolId}
-                    onChange={(event) => setCreateSchoolId(event.target.value)}
-                    placeholder="Leave blank for school-board term"
-                  />
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground">
-                  Scope is automatically set to your school.
-                </p>
-              )}
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label htmlFor="term-start-date">Start Date</Label>
-                  <Input
-                    id="term-start-date"
-                    type="date"
-                    value={createStartDate}
-                    onChange={(event) => setCreateStartDate(event.target.value)}
+                    id="term-name"
+                    value={createTermName}
+                    onChange={(event) => setCreateTermName(event.target.value)}
+                    placeholder="First Term"
                     required
                   />
                 </div>
+
                 <div className="space-y-2">
-                  <Label htmlFor="term-end-date">End Date</Label>
-                  <Input
-                    id="term-end-date"
-                    type="date"
-                    value={createEndDate}
-                    onChange={(event) => setCreateEndDate(event.target.value)}
+                  <Label htmlFor="term-academic-session">Academic Session</Label>
+                  <select
+                    id="term-academic-session"
+                    className="h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm"
+                    value={createAcademicSessionId}
+                    onChange={(event) => setCreateAcademicSessionId(event.target.value)}
                     required
-                  />
+                  >
+                    <option value="">Select academic session</option>
+                    {academicSessions.map((session) => {
+                      const sessionId = session._id ?? session.id
+
+                      if (!sessionId) {
+                        return null
+                      }
+
+                      return (
+                        <option key={sessionId} value={sessionId}>
+                          {academicSessionLabelById.get(sessionId) ?? sessionId}
+                        </option>
+                      )
+                    })}
+                  </select>
                 </div>
-              </div>
 
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={createIsActive}
-                  onChange={(event) => setCreateIsActive(event.target.checked)}
-                />
-                <span>Set as active term</span>
-              </label>
+                {canSetSchoolScope ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="term-school-id">School ID (optional)</Label>
+                    <Input
+                      id="term-school-id"
+                      value={createSchoolId}
+                      onChange={(event) => setCreateSchoolId(event.target.value)}
+                      placeholder="Leave blank for school-board term"
+                    />
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Scope is automatically set to your school.
+                  </p>
+                )}
 
-              {createError ? <p className="text-sm text-destructive">{createError}</p> : null}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="term-start-date">Start Date</Label>
+                    <Input
+                      id="term-start-date"
+                      type="date"
+                      value={createStartDate}
+                      onChange={(event) => setCreateStartDate(event.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="term-end-date">End Date</Label>
+                    <Input
+                      id="term-end-date"
+                      type="date"
+                      value={createEndDate}
+                      onChange={(event) => setCreateEndDate(event.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
 
-              <Button type="submit" disabled={isCreating}>
-                {isCreating ? "Creating..." : "Create Term"}
-              </Button>
-            </form>
-          </ModalContent>
-        </Modal>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={createIsActive}
+                    onChange={(event) => setCreateIsActive(event.target.checked)}
+                  />
+                  <span>Set as active term</span>
+                </label>
+
+                {createError ? <p className="text-sm text-destructive">{createError}</p> : null}
+
+                <Button type="submit" disabled={isCreating}>
+                  {isCreating ? "Creating..." : "Create Term"}
+                </Button>
+              </form>
+            </ModalContent>
+          </Modal>
+        ) : (
+          <p className="text-sm text-muted-foreground">Only school board admins and school admins can create terms.</p>
+        )}
       </div>
 
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
@@ -458,6 +473,8 @@ export default function TermsPage() {
           </form>
         </ModalContent>
       </Modal>
+        </>
+      ) : null}
     </div>
   )
 }

@@ -43,9 +43,10 @@ export interface School {
   id?: string
   _id?: string
   name: string
-  schoolBoard?: string | null
+  schoolBoard?: string | { id?: string; _id?: string; name?: string } | null
   schoolTypes?: string[]
   classes?: string[]
+  adminUser?: string | null
   address?: string
   state?: string
   localGovernment?: string
@@ -65,6 +66,19 @@ export interface CreateSchoolInput {
   district?: string
   longitude?: number
   latitude?: number
+  status?: "active" | "inactive"
+}
+
+export interface UpdateSchoolInput {
+  name?: string
+  schoolTypes?: string[]
+  address?: string | null
+  state?: string | null
+  localGovernment?: string | null
+  district?: string | null
+  longitude?: number
+  latitude?: number
+  adminUser?: string | null
   status?: "active" | "inactive"
 }
 

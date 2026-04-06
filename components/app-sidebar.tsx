@@ -79,7 +79,7 @@ const navItems = [
     title: "Terms",
     url: "/dashboard/terms",
     icon: CalendarDays,
-    internalOnly: false,
+    allowedRoles: ["school-board-admin", "school-admin"],
   },
   {
     title: "Classes",
@@ -123,6 +123,7 @@ export function AppSidebar() {
   const visibleNavItems = navItems.filter((item) => {
     if (item.hideForInternal && isInternalUser) return false
     if (item.showForInternal && !isInternalUser) return false
+    if (item.allowedRoles && !item.allowedRoles.includes(authUser?.role as string)) return false
     return true
   })
 

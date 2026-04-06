@@ -1,8 +1,9 @@
 "use client"
 
 import { FormEvent, useEffect, useState } from "react"
+import Link from "next/link"
 
-import type { Class, School, SchoolType } from "@/interfaces/resource-interface"
+import type { Class, School, SchoolBoard, SchoolType } from "@/interfaces/resource-interface"
 import { resourceService } from "@/services/resource-service"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -19,6 +20,7 @@ import {
 
 export default function SchoolsPage() {
   const [schools, setSchools] = useState<School[]>([])
+  const [schoolBoards, setSchoolBoards] = useState<SchoolBoard[]>([])
   const [schoolTypes, setSchoolTypes] = useState<SchoolType[]>([])
   const [classes, setClasses] = useState<Class[]>([])
   const [name, setName] = useState("")
@@ -34,6 +36,8 @@ export default function SchoolsPage() {
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isDeletingId, setIsDeletingId] = useState<string | null>(null)
+  const [isDeactivatingId, setIsDeactivatingId] = useState<string | null>(null)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
 
   const activeCount = schools.filter((item) => item.status !== "inactive").length
@@ -46,14 +50,15 @@ export default function SchoolsPage() {
     setLoading(true)
 
     try {
-      const result = await resourceService.getSchools()
-      setSchools(result.results)
-
-      const [schoolTypeResult, classResult] = await Promise.all([
+      const [schoolResult, schoolBoardResult, schoolTypeResult, classResult] = await Promise.all([
+        resourceService.getSchools(),
+        resourceService.getSchoolBoards(),
         resourceService.getSchoolTypes({ limit: 100, page: 1 }),
         resourceService.getClasses({ limit: 100, page: 1 }),
       ])
 
+      setSchools(schoolResult.results)
+      setSchoolBoards(schoolBoardResult.results)
       setSchoolTypes(schoolTypeResult.results)
       setClasses(classResult.results)
     } catch (loadError) {
@@ -66,6 +71,77 @@ export default function SchoolsPage() {
   useEffect(() => {
     void loadSchools()
   }, [])
+
+  function getSchoolId(school: School) {
+    return school._id ?? school.id ?? ""
+  }
+
+  function getBoardNameById(boardId: string | null | undefined) {
+    if (!boardId) {
+      return "Independent"
+    }
+
+    const board = schoolBoards.find((item) => (item._id ?? item.id) === boardId)
+    return board?.name ?? boardId
+  }
+
+  function getSchoolBoardName(school: School) {
+    if (!school.schoolBoard) {
+      return "Independent"
+    }
+
+    if (typeof school.schoolBoard === "string") {
+      return getBoardNameById(school.schoolBoard)
+    }
+
+    return school.schoolBoard.name ?? getBoardNameById(school.schoolBoard._id ?? school.schoolBoard.id)
+  }
+
+  async function handleDeleteSchool(school: School) {
+    const schoolId = getSchoolId(school)
+    if (!schoolId) {
+      return
+    }
+
+    if (!window.confirm(`Delete ${school.name}?`)) {
+      return
+    }
+
+    try {
+      setIsDeletingId(schoolId)
+      await resourceService.deleteSchool(schoolId)
+      await loadSchools()
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : "Unable to delete school.")
+    } finally {
+      setIsDeletingId(null)
+    }
+  }
+
+  async function handleDeactivateSchool(school: School) {
+    const schoolId = getSchoolId(school)
+    if (!schoolId) {
+      return
+    }
+
+    if ((school.status ?? "active") === "inactive") {
+      return
+    }
+
+    if (!window.confirm(`Deactivate ${school.name}?`)) {
+      return
+    }
+
+    try {
+      setIsDeactivatingId(schoolId)
+      await resourceService.deactivateSchool(schoolId)
+      await loadSchools()
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : "Unable to deactivate school.")
+    } finally {
+      setIsDeactivatingId(null)
+    }
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -294,14 +370,14 @@ export default function SchoolsPage() {
                     <th className="px-3 py-2 font-medium">Longitude</th>
                     <th className="px-3 py-2 font-medium">Latitude</th>
                     <th className="px-3 py-2 font-medium">Status</th>
-                    <th className="px-3 py-2 font-medium">ID</th>
+                    <th className="px-3 py-2 font-medium">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {schools.map((item) => (
-                    <tr key={item._id ?? item.id ?? item.name} className="border-t">
+                    <tr key={getSchoolId(item) || item.name} className="border-t">
                       <td className="px-3 py-2">{item.name}</td>
-                      <td className="px-3 py-2">{item.schoolBoard || "Independent"}</td>
+                      <td className="px-3 py-2">{getSchoolBoardName(item)}</td>
                       <td className="px-3 py-2">{item.schoolTypes?.length ?? 0}</td>
                       <td className="px-3 py-2">{item.classes?.length ?? 0}</td>
                       <td className="px-3 py-2">{item.address || "-"}</td>
@@ -311,7 +387,48 @@ export default function SchoolsPage() {
                       <td className="px-3 py-2">{item.longitude ?? "-"}</td>
                       <td className="px-3 py-2">{item.latitude ?? "-"}</td>
                       <td className="px-3 py-2">{item.status || "active"}</td>
-                      <td className="px-3 py-2">{item._id ?? item.id ?? "-"}</td>
+                      <td className="px-3 py-2">
+                        <div className="flex items-center gap-2">
+                          {getSchoolId(item) ? (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                nativeButton={false}
+                                render={<Link href={`/dashboard/schools/${getSchoolId(item)}`} />}
+                              >
+                                View
+                              </Button>
+                            </>
+                          ) : null}
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => void handleDeleteSchool(item)}
+                            disabled={isDeletingId === getSchoolId(item)}
+                          >
+                            {isDeletingId === getSchoolId(item) ? "Deleting..." : "Delete"}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => void handleDeactivateSchool(item)}
+                            disabled={isDeactivatingId === getSchoolId(item) || (item.status ?? "active") === "inactive"}
+                          >
+                            {isDeactivatingId === getSchoolId(item) ? "Deactivating..." : "Deactivate"}
+                          </Button>
+                          {getSchoolId(item) ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              nativeButton={false}
+                              render={<Link href={`/dashboard/schools/${getSchoolId(item)}?mode=edit`} />}
+                            >
+                              Edit
+                            </Button>
+                          ) : null}
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

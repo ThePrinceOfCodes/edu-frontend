@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 
 import type {
   AcademicSession,
@@ -30,7 +30,10 @@ export default function DashboardPage() {
   const [terms, setTerms] = useState<Term[]>([])
   const [sessions, setSessions] = useState<AcademicSession[]>([])
 
+  const [isTermSessionPickerOpen, setIsTermSessionPickerOpen] = useState(false)
+  const [selectedSessionId, setSelectedSessionId] = useState("")
   const [selectedTermId, setSelectedTermId] = useState("")
+  const termSessionPickerRef = useRef<HTMLDivElement | null>(null)
   const [attendanceBySchool, setAttendanceBySchool] = useState<
     Array<{ schoolId: string; schoolName: string; percentage: number; studentCount: number }>
   >([])
@@ -48,11 +51,32 @@ export default function DashboardPage() {
   const [threadError, setThreadError] = useState<string | null>(null)
   const [messageError, setMessageError] = useState<string | null>(null)
 
-  const selectedTerm = useMemo(() => terms.find((item) => (item._id ?? item.id) === selectedTermId) || null, [terms, selectedTermId])
-  const selectedSession = useMemo(
-    () => sessions.find((item) => (item._id ?? item.id) === selectedTerm?.academicSessionId) || null,
-    [sessions, selectedTerm?.academicSessionId]
+  const selectedTerm = useMemo(
+    () => terms.find((item) => (item._id ?? item.id) === selectedTermId) || null,
+    [terms, selectedTermId]
   )
+  const selectedSession = useMemo(
+    () =>
+      sessions.find(
+        (item) => (item._id ?? item.id) === (selectedSessionId || selectedTerm?.academicSessionId)
+      ) || null,
+    [sessions, selectedSessionId, selectedTerm?.academicSessionId]
+  )
+  const termsForSelectedSession = useMemo(() => {
+    if (!selectedSessionId) {
+      return terms
+    }
+
+    return terms.filter((item) => item.academicSessionId === selectedSessionId)
+  }, [terms, selectedSessionId])
+  const currentTermSessionLabel = useMemo(() => {
+    const termLabel = selectedTerm?.name || selectedTerm?.termName || "Select term"
+    const sessionLabel = selectedSession
+      ? `${selectedSession.startYear}/${selectedSession.endYear}`
+      : "Select session"
+
+    return `${termLabel} - ${sessionLabel}`
+  }, [selectedSession, selectedTerm?.name, selectedTerm?.termName])
 
   const overallAttendance = useMemo(() => {
     if (attendanceBySchool.length === 0) {
@@ -128,9 +152,15 @@ export default function DashboardPage() {
         let defaultTermId = selectedTermId
         if (!defaultTermId) {
           const activeTerm = termsList.find((item) => Boolean(item.isActive))
-          defaultTermId = (activeTerm?._id ?? activeTerm?.id ?? "")
+          const firstTerm = termsList[0]
+          defaultTermId = activeTerm?._id ?? activeTerm?.id ?? firstTerm?._id ?? firstTerm?.id ?? ""
         }
+
+        const defaultTerm = termsList.find((item) => (item._id ?? item.id) === defaultTermId)
+        const activeSession = (sessionsResult.results || []).find((item) => Boolean(item.isActive))
+
         setSelectedTermId(defaultTermId)
+        setSelectedSessionId(defaultTerm?.academicSessionId ?? (activeSession?._id ?? activeSession?.id ?? ""))
       } catch (error) {
         setLoadError(error instanceof Error ? error.message : "Unable to load dashboard.")
       } finally {
@@ -223,6 +253,70 @@ export default function DashboardPage() {
     void loadThreadMessages()
   }, [selectedThreadId])
 
+  useEffect(() => {
+    if (!isTermSessionPickerOpen) {
+      return
+    }
+
+    function handlePointerDown(event: MouseEvent | TouchEvent) {
+      const target = event.target
+      if (!(target instanceof Node)) {
+        return
+      }
+
+      if (termSessionPickerRef.current && !termSessionPickerRef.current.contains(target)) {
+        setIsTermSessionPickerOpen(false)
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsTermSessionPickerOpen(false)
+      }
+    }
+
+    document.addEventListener("mousedown", handlePointerDown)
+    document.addEventListener("touchstart", handlePointerDown)
+    document.addEventListener("keydown", handleKeyDown)
+
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown)
+      document.removeEventListener("touchstart", handlePointerDown)
+      document.removeEventListener("keydown", handleKeyDown)
+    }
+  }, [isTermSessionPickerOpen])
+
+  function handleSessionChange(sessionId: string) {
+    setSelectedSessionId(sessionId)
+
+    const nextTerms = terms.filter((item) => item.academicSessionId === sessionId)
+
+    if (nextTerms.length === 0) {
+      setSelectedTermId("")
+      return
+    }
+
+    const currentTermStillValid = nextTerms.some((item) => (item._id ?? item.id) === selectedTermId)
+    if (currentTermStillValid) {
+      return
+    }
+
+    const activeTerm = nextTerms.find((item) => Boolean(item.isActive))
+    const defaultTerm = activeTerm ?? nextTerms[0]
+    setSelectedTermId(defaultTerm?._id ?? defaultTerm?.id ?? "")
+  }
+
+  function handleTermChange(termId: string) {
+    setSelectedTermId(termId)
+
+    const term = terms.find((item) => (item._id ?? item.id) === termId)
+    if (term?.academicSessionId) {
+      setSelectedSessionId(term.academicSessionId)
+    }
+
+    setIsTermSessionPickerOpen(false)
+  }
+
   async function handleCreateThread() {
     setThreadError(null)
 
@@ -275,34 +369,63 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        <Card className="min-w-[320px]">
-          <CardHeader>
-            <CardTitle className="text-sm">Current Term & Academic Session</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <Label htmlFor="dashboard-term">Select Term</Label>
-            <select
-              id="dashboard-term"
-              className="h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm"
-              value={selectedTermId}
-              onChange={(event) => setSelectedTermId(event.target.value)}
-            >
-              <option value="">Select term</option>
-              {terms.map((term) => {
-                const id = term._id ?? term.id ?? ""
-                return (
-                  <option key={id} value={id}>
-                    {term.name}
-                    {term.isActive ? " (active)" : ""}
-                  </option>
-                )
-              })}
-            </select>
-            <p className="text-xs text-muted-foreground">
-              Session: {selectedSession ? `${selectedSession.startYear}/${selectedSession.endYear}` : "-"}
-            </p>
+       <CardContent>
+            <div className="relative" ref={termSessionPickerRef}>
+              <button
+                type="button"
+                className="flex h-10 w-full items-center justify-between rounded-md border bg-background px-3 text-sm"
+                onClick={() => setIsTermSessionPickerOpen((current) => !current)}
+              >
+                <span>{currentTermSessionLabel}</span>
+              </button>
+
+              {isTermSessionPickerOpen ? (
+                <div className="absolute right-0 z-20 mt-2 w-full space-y-3 rounded-md border bg-popover p-3 shadow-md">
+                  <div className="space-y-2">
+                    <Label htmlFor="dashboard-session">Academic Session</Label>
+                    <select
+                      id="dashboard-session"
+                      className="h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm"
+                      value={selectedSessionId}
+                      onChange={(event) => handleSessionChange(event.target.value)}
+                    >
+                      <option value="">Select session</option>
+                      {sessions.map((session) => {
+                        const id = session._id ?? session.id ?? ""
+                        return (
+                          <option key={id} value={id}>
+                            {session.startYear}/{session.endYear}
+                            {session.isActive ? " (active)" : ""}
+                          </option>
+                        )
+                      })}
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="dashboard-term">Term</Label>
+                    <select
+                      id="dashboard-term"
+                      className="h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm"
+                      value={selectedTermId}
+                      onChange={(event) => handleTermChange(event.target.value)}
+                    >
+                      <option value="">Select term</option>
+                      {termsForSelectedSession.map((term) => {
+                        const id = term._id ?? term.id ?? ""
+                        return (
+                          <option key={id} value={id}>
+                            {term.name}
+                            {term.isActive ? " (active)" : ""}
+                          </option>
+                        )
+                      })}
+                    </select>
+                  </div>
+                </div>
+              ) : null}
+            </div>
           </CardContent>
-        </Card>
       </div>
 
       <div className="flex items-center gap-2">

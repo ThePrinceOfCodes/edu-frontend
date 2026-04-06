@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useParams, useSearchParams } from "next/navigation"
 
-import type { School, SchoolBoard, SchoolType } from "@/interfaces/resource-interface"
+import type { School, SchoolBoard, SchoolType, Staff, Student } from "@/interfaces/resource-interface"
 import { resourceService } from "@/services/resource-service"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -35,12 +35,15 @@ export default function SchoolViewPage() {
   const [school, setSchool] = useState<School | null>(null)
   const [schoolBoards, setSchoolBoards] = useState<SchoolBoard[]>([])
   const [schoolTypes, setSchoolTypes] = useState<SchoolType[]>([])
+  const [staffList, setStaffList] = useState<Staff[]>([])
+  const [studentList, setStudentList] = useState<Student[]>([])
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [isActionOpen, setIsActionOpen] = useState(false)
+  const [selectedAction, setSelectedAction] = useState<"staff" | "class" | "admin" | "">("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [submitSuccess, setSubmitSuccess] = useState<string | null>(null)
@@ -66,7 +69,7 @@ export default function SchoolViewPage() {
   const [classCode, setClassCode] = useState("")
   const [classSchoolTypeId, setClassSchoolTypeId] = useState("")
 
-  const [adminUserId, setAdminUserId] = useState("")
+  const [selectedAdminUserIds, setSelectedAdminUserIds] = useState<string[]>([])
 
   const schoolBoardName = useMemo(() => {
     if (!school?.schoolBoard) {
@@ -95,6 +98,36 @@ export default function SchoolViewPage() {
     return schoolTypes.filter((item) => allowedIds.has(item._id ?? item.id ?? ""))
   }, [school?.schoolTypes, schoolTypes])
 
+  const existingSchoolUsers = useMemo(() => {
+    const users = staffList
+      .map((staff) => {
+        if (!staff.user) {
+          return null
+        }
+
+        if (typeof staff.user === "string") {
+          return { id: staff.user, name: staff.user, email: "" }
+        }
+
+        const id = staff.user._id ?? staff.user.id
+        if (!id) {
+          return null
+        }
+
+        return {
+          id,
+          name: staff.user.name ?? id,
+          email: staff.user.email ?? "",
+        }
+      })
+      .filter((item): item is { id: string; name: string; email: string } => Boolean(item))
+
+    const uniqueById = new Map<string, { id: string; name: string; email: string }>()
+    users.forEach((user) => uniqueById.set(user.id, user))
+
+    return [...uniqueById.values()]
+  }, [staffList])
+
   function syncEditFields(record: School) {
     setName(record.name)
     setAddress(record.address ?? "")
@@ -104,7 +137,13 @@ export default function SchoolViewPage() {
     setLongitude(record.longitude === undefined || record.longitude === null ? "" : String(record.longitude))
     setLatitude(record.latitude === undefined || record.latitude === null ? "" : String(record.latitude))
     setStatus(record.status ?? "active")
-    setAdminUserId(record.adminUser ?? "")
+    setSelectedAdminUserIds(
+      record.adminUsers && record.adminUsers.length > 0
+        ? record.adminUsers
+        : record.adminUser
+          ? [record.adminUser]
+          : []
+    )
   }
 
   async function loadData() {
@@ -118,15 +157,19 @@ export default function SchoolViewPage() {
     setError(null)
 
     try {
-      const [schoolResult, schoolBoardsResult, schoolTypesResult] = await Promise.all([
+      const [schoolResult, schoolBoardsResult, schoolTypesResult, staffResult, studentsResult] = await Promise.all([
         resourceService.getSchoolById(schoolId),
         resourceService.getSchoolBoards(),
         resourceService.getSchoolTypes({ limit: 200, page: 1 }),
+        resourceService.getStaff({ school: schoolId, limit: 200, page: 1 }),
+        resourceService.getStudents({ school: schoolId, limit: 200, page: 1 }),
       ])
 
       setSchool(schoolResult)
       setSchoolBoards(schoolBoardsResult.results)
       setSchoolTypes(schoolTypesResult.results)
+      setStaffList(staffResult.results)
+      setStudentList(studentsResult.results)
       syncEditFields(schoolResult)
 
       if (searchParams.get("mode") === "edit") {
@@ -160,7 +203,8 @@ export default function SchoolViewPage() {
       const payload: Record<string, unknown> = {
         name,
         status,
-        adminUser: adminUserId || null,
+        adminUsers: selectedAdminUserIds,
+        adminUser: selectedAdminUserIds[0] || null,
       }
 
       payload.address = address || null
@@ -222,6 +266,7 @@ export default function SchoolViewPage() {
       setStaffDesignation("")
       setStaffEmployeeId("")
       setStaffEmploymentType("staff")
+      await loadData()
       setSubmitSuccess("Staff created successfully.")
     } catch (createError) {
       setSubmitError(createError instanceof Error ? createError.message : "Unable to create staff.")
@@ -271,18 +316,22 @@ export default function SchoolViewPage() {
       return
     }
 
-    if (!adminUserId) {
-      setSubmitError("Enter a school admin user ID.")
+    if (selectedAdminUserIds.length === 0) {
+      setSubmitError("Select at least one school admin.")
       return
     }
 
     setIsSubmitting(true)
 
     try {
-      const updated = await resourceService.updateSchool(currentSchoolId, { adminUser: adminUserId })
+      const updated = await resourceService.updateSchool(currentSchoolId, {
+        adminUsers: selectedAdminUserIds,
+        adminUser: selectedAdminUserIds[0],
+      })
       setSchool(updated)
       syncEditFields(updated)
-      setSubmitSuccess("School admin assigned.")
+      await loadData()
+      setSubmitSuccess("School admins assigned.")
     } catch (assignError) {
       setSubmitError(assignError instanceof Error ? assignError.message : "Unable to assign school admin.")
     } finally {
@@ -386,15 +435,53 @@ export default function SchoolViewPage() {
             </ModalContent>
           </Modal>
 
-          <Modal open={isActionOpen} onOpenChange={setIsActionOpen}>
-            <ModalTrigger render={<Button variant="outline" />}>Actions</ModalTrigger>
+          <div className="flex items-center gap-2">
+            <Label htmlFor="school-action" className="text-sm">
+              Actions
+            </Label>
+            <select
+              id="school-action"
+              className="h-9 rounded-md border bg-transparent px-3 py-1 text-sm"
+              value={selectedAction}
+              onChange={(event) => {
+                const action = event.target.value as "staff" | "class" | "admin" | ""
+                setSelectedAction(action)
+                if (action) {
+                  setIsActionOpen(true)
+                }
+              }}
+            >
+              <option value="">Select action</option>
+              <option value="staff">Create Staff</option>
+              <option value="class">Create Class</option>
+              <option value="admin">Assign School Admin</option>
+            </select>
+          </div>
+
+          <Modal
+            open={isActionOpen}
+            onOpenChange={(open) => {
+              setIsActionOpen(open)
+              if (!open) {
+                setSelectedAction("")
+              }
+            }}
+          >
+            <ModalTrigger render={<button className="hidden" />} />
             <ModalContent className="max-w-2xl">
               <ModalHeader>
                 <ModalTitle>School Actions</ModalTitle>
-                <ModalDescription>Create staff, class, and school admin from this dashboard.</ModalDescription>
+                <ModalDescription>
+                  {selectedAction === "staff"
+                    ? "Create staff from this school dashboard."
+                    : selectedAction === "class"
+                      ? "Create class from this school dashboard."
+                      : "Assign school admin from this school dashboard."}
+                </ModalDescription>
               </ModalHeader>
 
               <div className="space-y-5">
+                {selectedAction === "staff" ? (
                 <form className="space-y-3 rounded-md border p-3" onSubmit={handleCreateStaff}>
                   <p className="text-sm font-medium">Create Staff</p>
                   <div className="grid grid-cols-2 gap-3">
@@ -474,7 +561,9 @@ export default function SchoolViewPage() {
                     {isSubmitting ? "Creating..." : "Create Staff"}
                   </Button>
                 </form>
+                ) : null}
 
+                {selectedAction === "class" ? (
                 <form className="space-y-3 rounded-md border p-3" onSubmit={handleCreateClass}>
                   <p className="text-sm font-medium">Create Class</p>
                   <div className="grid grid-cols-3 gap-3">
@@ -521,23 +610,45 @@ export default function SchoolViewPage() {
                     {isSubmitting ? "Creating..." : "Create Class"}
                   </Button>
                 </form>
+                ) : null}
 
+                {selectedAction === "admin" ? (
                 <form className="space-y-3 rounded-md border p-3" onSubmit={handleAssignSchoolAdmin}>
-                  <p className="text-sm font-medium">Create/Assign School Admin</p>
+                  <p className="text-sm font-medium">Assign School Admin(s)</p>
                   <div className="space-y-2">
-                    <Label htmlFor="school-admin-user-id">School Admin User ID</Label>
-                    <Input
-                      id="school-admin-user-id"
-                      value={adminUserId}
-                      onChange={(event) => setAdminUserId(event.target.value)}
-                      placeholder="Enter existing user ID"
-                      required
-                    />
+                    <Label>Existing Users</Label>
+                    <div className="max-h-56 space-y-2 overflow-y-auto rounded-md border p-3">
+                      {existingSchoolUsers.length > 0 ? (
+                        existingSchoolUsers.map((user) => (
+                          <label key={user.id} className="flex items-center gap-2 text-sm">
+                            <input
+                              type="checkbox"
+                              checked={selectedAdminUserIds.includes(user.id)}
+                              onChange={(event) => {
+                                if (event.target.checked) {
+                                  setSelectedAdminUserIds((current) => [...new Set([...current, user.id])])
+                                  return
+                                }
+
+                                setSelectedAdminUserIds((current) => current.filter((id) => id !== user.id))
+                              }}
+                            />
+                            <span>
+                              {user.name}
+                              {user.email ? ` (${user.email})` : ""}
+                            </span>
+                          </label>
+                        ))
+                      ) : (
+                        <p className="text-xs text-muted-foreground">No existing users found for this school.</p>
+                      )}
+                    </div>
                   </div>
                   <Button type="submit" disabled={isSubmitting}>
                     {isSubmitting ? "Assigning..." : "Assign School Admin"}
                   </Button>
                 </form>
+                ) : null}
               </div>
             </ModalContent>
           </Modal>
@@ -616,9 +727,90 @@ export default function SchoolViewPage() {
                   {schoolTypeNames.length > 0 ? schoolTypeNames.join(", ") : "-"}
                 </p>
                 <p className="md:col-span-2">
-                  <span className="font-medium">School Admin User ID:</span> {school.adminUser || "-"}
+                  <span className="font-medium">School Admin User IDs:</span>{" "}
+                  {school.adminUsers && school.adminUsers.length > 0
+                    ? school.adminUsers.join(", ")
+                    : school.adminUser || "-"}
                 </p>
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Staff Table</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {staffList.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No staff records found.</p>
+              ) : (
+                <div className="overflow-x-auto rounded-md border">
+                  <table className="min-w-full text-left text-sm">
+                    <thead className="bg-muted/40 text-muted-foreground">
+                      <tr>
+                        <th className="px-3 py-2 font-medium">Staff ID</th>
+                        <th className="px-3 py-2 font-medium">Employment Type</th>
+                        <th className="px-3 py-2 font-medium">Employee ID</th>
+                        <th className="px-3 py-2 font-medium">Designation</th>
+                        <th className="px-3 py-2 font-medium">Active</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {staffList.map((staff) => {
+                        const id = staff._id ?? staff.id ?? "-"
+                        return (
+                          <tr key={id} className="border-t">
+                            <td className="px-3 py-2">{id}</td>
+                            <td className="px-3 py-2">{staff.employmentType ?? "-"}</td>
+                            <td className="px-3 py-2">{staff.employeeId ?? "-"}</td>
+                            <td className="px-3 py-2">{staff.designation ?? "-"}</td>
+                            <td className="px-3 py-2">{staff.isActive ? "Yes" : "No"}</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Students Table</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {studentList.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No students found.</p>
+              ) : (
+                <div className="overflow-x-auto rounded-md border">
+                  <table className="min-w-full text-left text-sm">
+                    <thead className="bg-muted/40 text-muted-foreground">
+                      <tr>
+                        <th className="px-3 py-2 font-medium">Reg Number</th>
+                        <th className="px-3 py-2 font-medium">First Name</th>
+                        <th className="px-3 py-2 font-medium">Last Name</th>
+                        <th className="px-3 py-2 font-medium">Gender</th>
+                        <th className="px-3 py-2 font-medium">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {studentList.map((student) => {
+                        const id = student._id ?? student.id ?? student.regNumber
+                        return (
+                          <tr key={id} className="border-t">
+                            <td className="px-3 py-2">{student.regNumber}</td>
+                            <td className="px-3 py-2">{student.firstName}</td>
+                            <td className="px-3 py-2">{student.lastName}</td>
+                            <td className="px-3 py-2">{student.gender}</td>
+                            <td className="px-3 py-2">{student.status ?? "active"}</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </CardContent>
           </Card>
         </>

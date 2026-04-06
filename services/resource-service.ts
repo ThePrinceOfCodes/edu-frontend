@@ -113,8 +113,15 @@ export const resourceService = {
     })
   },
 
-  getStaff() {
-    return request<PaginatedResponse<Staff>>("/api/staff")
+  getStaff(params?: {
+    limit?: number
+    page?: number
+    schoolBoard?: string
+    school?: string
+    employmentType?: "teacher" | "staff"
+    isActive?: boolean
+  }) {
+    return request<PaginatedResponse<Staff>>(`/api/staff${toQueryString(params)}`)
   },
   createStaff(input: CreateStaffInput) {
     return request<Staff>("/api/staff", {

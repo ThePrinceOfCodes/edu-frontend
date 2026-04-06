@@ -47,6 +47,7 @@ export interface School {
   schoolTypes?: string[]
   classes?: string[]
   adminUser?: string | null
+  adminUsers?: string[]
   address?: string
   state?: string
   localGovernment?: string
@@ -79,6 +80,7 @@ export interface UpdateSchoolInput {
   longitude?: number
   latitude?: number
   adminUser?: string | null
+  adminUsers?: string[]
   status?: "active" | "inactive"
 }
 
@@ -111,6 +113,14 @@ export interface Staff {
   _id?: string
   schoolBoard?: string | null
   school?: string | null
+  user?:
+    | string
+    | {
+        id?: string
+        _id?: string
+        name?: string
+        email?: string
+      }
   employeeId?: string
   designation?: string
   employmentType?: "teacher" | "staff"

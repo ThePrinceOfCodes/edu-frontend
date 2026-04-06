@@ -16,7 +16,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(signInUrl)
   }
 
-  if (authToken && isPublicRoute(pathname)) {
+  if (authToken && pathname === "/") {
     return NextResponse.redirect(new URL("/dashboard", request.url))
   }
 

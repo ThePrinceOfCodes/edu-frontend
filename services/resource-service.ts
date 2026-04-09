@@ -195,7 +195,7 @@ export const resourceService = {
   getTerms(params?: {
     limit?: number
     page?: number
-    academicSessionId?: string
+    academicSession?: string
     schoolBoard?: string
     school?: string
     isActive?: boolean

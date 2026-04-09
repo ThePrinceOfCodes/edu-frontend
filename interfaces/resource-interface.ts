@@ -182,7 +182,7 @@ export interface Term {
   _id?: string
   name: string
   termName: string
-  academicSessionId: string
+  academicSession: string
   schoolBoard: string
   school?: string | null
   startDate: string
@@ -192,7 +192,7 @@ export interface Term {
 
 export interface CreateTermInput {
   termName: string
-  academicSessionId: string
+  academicSession: string
   schoolBoard?: string
   school?: string
   startDate: string
@@ -338,7 +338,7 @@ export interface AttendanceSummary {
   term: {
     id: string
     name: string
-    academicSessionId: string
+    academicSession: string
     schoolBoard: string
     school?: string | null
     startDate: string

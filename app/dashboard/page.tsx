@@ -95,13 +95,13 @@ export default function DashboardPage() {
   const selectedSession = useMemo(
     () =>
       sessions.find(
-        (item) => (item._id ?? item.id) === (selectedSessionId || selectedTerm?.academicSessionId)
+        (item) => `${item.startYear}/${item.endYear}` === (selectedSessionId || selectedTerm?.academicSession)
       ) || null,
-    [sessions, selectedSessionId, selectedTerm?.academicSessionId]
+    [sessions, selectedSessionId, selectedTerm?.academicSession]
   )
   const termsForSelectedSession = useMemo(() => {
     if (!selectedSessionId) return terms
-    return terms.filter((item) => item.academicSessionId === selectedSessionId)
+    return terms.filter((item) => item.academicSession === selectedSessionId)
   }, [terms, selectedSessionId])
 
   const currentTermSessionLabel = useMemo(() => {
@@ -166,7 +166,7 @@ export default function DashboardPage() {
         const activeSession = (sessionsResult.results || []).find((item) => Boolean(item.isActive))
 
         setSelectedTermId(defaultTermId)
-        setSelectedSessionId(defaultTerm?.academicSessionId ?? (activeSession?._id ?? activeSession?.id ?? ""))
+        setSelectedSessionId(defaultTerm?.academicSession ?? (activeSession ? `${activeSession.startYear}/${activeSession.endYear}` : ""))
       } catch (error) {
         setLoadError(error instanceof Error ? error.message : "Unable to load dashboard.")
       } finally {
@@ -272,7 +272,7 @@ export default function DashboardPage() {
 
   function handleSessionChange(sessionId: string) {
     setSelectedSessionId(sessionId)
-    const nextTerms = terms.filter((item) => item.academicSessionId === sessionId)
+    const nextTerms = terms.filter((item) => item.academicSession === sessionId)
     if (nextTerms.length === 0) { setSelectedTermId(""); return }
     const currentTermStillValid = nextTerms.some((item) => (item._id ?? item.id) === selectedTermId)
     if (currentTermStillValid) return
@@ -284,7 +284,7 @@ export default function DashboardPage() {
   function handleTermChange(termId: string) {
     setSelectedTermId(termId)
     const term = terms.find((item) => (item._id ?? item.id) === termId)
-    if (term?.academicSessionId) setSelectedSessionId(term.academicSessionId)
+    if (term?.academicSession) setSelectedSessionId(term.academicSession)
     setIsTermSessionPickerOpen(false)
   }
 
@@ -333,10 +333,10 @@ export default function DashboardPage() {
                 >
                   <option value="">Select session</option>
                   {sessions.map((session) => {
-                    const id = session._id ?? session.id ?? ""
+                    const sessionStr = `${session.startYear}/${session.endYear}`
                     return (
-                      <option key={id} value={id}>
-                        {session.startYear}/{session.endYear}
+                      <option key={sessionStr} value={sessionStr}>
+                        {sessionStr}
                         {session.isActive ? " (active)" : ""}
                       </option>
                     )

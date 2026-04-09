@@ -1,8 +1,9 @@
 "use client"
 
-import { FormEvent, useEffect, useMemo, useState } from "react"
+import { FormEvent, useEffect, useState } from "react"
 
-import type { AcademicSession, Term } from "@/interfaces/resource-interface"
+import type { AuthUser } from "@/interfaces/auth-interface"
+import type { Term } from "@/interfaces/resource-interface"
 import { authService } from "@/services/auth-service"
 import { resourceService } from "@/services/resource-service"
 import { Button } from "@/components/ui/button"
@@ -18,6 +19,15 @@ import {
   ModalTrigger,
 } from "@/components/ui/modal"
 
+const currentYear = new Date().getUTCFullYear()
+const ACADEMIC_SESSIONS: string[] = Array.from(
+  { length: currentYear + 10 - 2015 + 1 },
+  (_, i) => {
+    const y = 2015 + i
+    return `${y}/${y + 1}`
+  },
+)
+
 const toDateInputValue = (value: string) => {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) {
@@ -26,22 +36,29 @@ const toDateInputValue = (value: string) => {
   return date.toISOString().slice(0, 10)
 }
 
+const toDisplayDate = (value: string) => {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return "-"
+  }
+  return date.toISOString().slice(0, 10)
+}
+
 export default function TermsPage() {
-  const authUser = authService.getStoredUser()
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null)
+  const [isHydrated, setIsHydrated] = useState(false)
   const canViewTerms = authUser?.role === "school-board-admin" || authUser?.role === "school-admin"
   const canCreateTerm = canViewTerms
   const canSetSchoolScope =
     authUser?.accountType === "internal" || authUser?.role === "school-board-admin"
 
   const [terms, setTerms] = useState<Term[]>([])
-  const [academicSessions, setAcademicSessions] = useState<AcademicSession[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [createTermName, setCreateTermName] = useState("")
-  const [createAcademicSessionId, setCreateAcademicSessionId] = useState("")
-  const [createSchoolId, setCreateSchoolId] = useState("")
+  const [createAcademicSession, setCreateAcademicSession] = useState("")
   const [createStartDate, setCreateStartDate] = useState("")
   const [createEndDate, setCreateEndDate] = useState("")
   const [createIsActive, setCreateIsActive] = useState(true)
@@ -60,22 +77,6 @@ export default function TermsPage() {
 
   const [isDeletingId, setIsDeletingId] = useState<string | null>(null)
 
-  const academicSessionLabelById = useMemo(() => {
-    const map = new Map<string, string>()
-
-    for (const session of academicSessions) {
-      const sessionId = session._id ?? session.id
-      if (!sessionId) {
-        continue
-      }
-
-      const year = `${session.startYear}/${session.endYear}`
-      map.set(sessionId, session.name?.trim() || year)
-    }
-
-    return map
-  }, [academicSessions])
-
   async function loadData() {
     setLoading(true)
     setError(null)
@@ -84,22 +85,16 @@ export default function TermsPage() {
       const schoolBoardFilter =
         authUser?.accountType === "internal" ? undefined : authUser?.schoolBoardId || undefined
 
-      const [termsResult, sessionsResult] = await Promise.all([
+      const [termsResult] = await Promise.all([
         resourceService.getTerms({
           limit: 200,
           page: 1,
           schoolBoard: schoolBoardFilter,
           school: authUser?.role === "school-admin" ? authUser.schoolId || undefined : undefined,
         }),
-        resourceService.getAcademicSessions({
-          limit: 200,
-          page: 1,
-          schoolBoard: schoolBoardFilter,
-        }),
       ])
 
       setTerms(termsResult.results)
-      setAcademicSessions(sessionsResult.results)
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Unable to load terms.")
     } finally {
@@ -108,8 +103,17 @@ export default function TermsPage() {
   }
 
   useEffect(() => {
-    void loadData()
+    setAuthUser(authService.getStoredUser())
+    setIsHydrated(true)
   }, [])
+
+  useEffect(() => {
+    if (!isHydrated) {
+      return
+    }
+
+    void loadData()
+  }, [isHydrated])
 
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -119,16 +123,14 @@ export default function TermsPage() {
     try {
       await resourceService.createTerm({
         termName: createTermName,
-        academicSessionId: createAcademicSessionId,
-        school: canSetSchoolScope && createSchoolId ? createSchoolId : undefined,
+        academicSession: createAcademicSession,
         startDate: createStartDate,
         endDate: createEndDate,
         isActive: createIsActive,
       })
 
       setCreateTermName("")
-      setCreateAcademicSessionId("")
-      setCreateSchoolId("")
+      setCreateAcademicSession("")
       setCreateStartDate("")
       setCreateEndDate("")
       setCreateIsActive(true)
@@ -210,6 +212,10 @@ export default function TermsPage() {
     }
   }
 
+  if (!isHydrated) {
+    return <div className="space-y-4" />
+  }
+
   return (
     <div className="space-y-4">
       {!canViewTerms ? (
@@ -250,42 +256,18 @@ export default function TermsPage() {
                   <select
                     id="term-academic-session"
                     className="h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm"
-                    value={createAcademicSessionId}
-                    onChange={(event) => setCreateAcademicSessionId(event.target.value)}
+                    value={createAcademicSession}
+                    onChange={(event) => setCreateAcademicSession(event.target.value)}
                     required
                   >
                     <option value="">Select academic session</option>
-                    {academicSessions.map((session) => {
-                      const sessionId = session._id ?? session.id
-
-                      if (!sessionId) {
-                        return null
-                      }
-
-                      return (
-                        <option key={sessionId} value={sessionId}>
-                          {academicSessionLabelById.get(sessionId) ?? sessionId}
-                        </option>
-                      )
-                    })}
+                    {ACADEMIC_SESSIONS.map((session) => (
+                      <option key={session} value={session}>
+                        {session}
+                      </option>
+                    ))}
                   </select>
                 </div>
-
-                {canSetSchoolScope ? (
-                  <div className="space-y-2">
-                    <Label htmlFor="term-school-id">School ID (optional)</Label>
-                    <Input
-                      id="term-school-id"
-                      value={createSchoolId}
-                      onChange={(event) => setCreateSchoolId(event.target.value)}
-                      placeholder="Leave blank for school-board term"
-                    />
-                  </div>
-                ) : (
-                  <p className="text-xs text-muted-foreground">
-                    Scope is automatically set to your school.
-                  </p>
-                )}
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
@@ -369,12 +351,11 @@ export default function TermsPage() {
                         <td className="px-3 py-2">{term.name}</td>
                         <td className="px-3 py-2">{term.termName}</td>
                         <td className="px-3 py-2">
-                          {academicSessionLabelById.get(term.academicSessionId) ?? term.academicSessionId}
+                          {term.academicSession ?? "-"}
                         </td>
                         <td className="px-3 py-2">{scope}</td>
                         <td className="px-3 py-2">
-                          {new Date(term.startDate).toLocaleDateString()} -{" "}
-                          {new Date(term.endDate).toLocaleDateString()}
+                          {toDisplayDate(term.startDate)} - {toDisplayDate(term.endDate)}
                         </td>
                         <td className="px-3 py-2">{term.isActive ? "Yes" : "No"}</td>
                         <td className="px-3 py-2">

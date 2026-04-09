@@ -61,6 +61,7 @@ export interface CreateSchoolInput {
   name: string
   schoolBoard?: string
   schoolTypes?: string[]
+  classes?: string[]
   address?: string
   state?: string
   localGovernment?: string

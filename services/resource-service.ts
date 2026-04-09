@@ -34,7 +34,7 @@ import type {
 } from "@/interfaces/resource-interface"
 import { request } from "@/services/http"
 
-function toQueryString(params?: Record<string, string | number | undefined>) {
+function toQueryString(params?: Record<string, string | number | boolean | undefined>) {
   if (!params) {
     return ""
   }

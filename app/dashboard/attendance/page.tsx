@@ -10,8 +10,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 const statusView: Record<string, { label: string; className: string }> = {
   present: { label: "P", className: "text-emerald-600" },
   absent: { label: "A", className: "text-destructive" },
-  late: { label: "L", className: "text-amber-600" },
-  excused: { label: "E", className: "text-sky-600" },
   "-": { label: "-", className: "text-muted-foreground" },
 }
 
@@ -90,6 +88,14 @@ export default function AttendancePage() {
   }, [selectedSchool])
 
   const activeCount = useMemo(() => summary?.rows.length ?? 0, [summary])
+  const visibleDays = useMemo(
+    () =>
+      (summary?.days ?? []).filter((day) => {
+        const dayOfWeek = new Date(`${day.date}T00:00:00Z`).getUTCDay()
+        return dayOfWeek !== 0 && dayOfWeek !== 6
+      }),
+    [summary]
+  )
 
   return (
     <div className="space-y-4">
@@ -172,37 +178,37 @@ export default function AttendancePage() {
             <p className="text-sm text-muted-foreground">No attendance records found for the active term.</p>
           ) : null}
           {!loading && !loadError && summary && summary.rows.length > 0 ? (
-            <div className="overflow-x-auto rounded-md border">
-              <table className="min-w-max text-left text-sm">
+            <div className="overflow-x-auto rounded-md border bg-background">
+              <table className="min-w-max border-separate border-spacing-0 text-left text-sm">
                 <thead className="bg-muted/40 text-muted-foreground">
                   <tr>
-                    <th className="sticky left-0 z-10 bg-muted/40 px-3 py-2 font-medium">Student</th>
-                    {summary.days.map((day) => (
-                      <th key={day.date} className="px-2 py-2 text-center font-medium">
+                    <th className="sticky left-0 z-30 isolate min-w-56 whitespace-nowrap border-b border-r border-border bg-muted px-3 py-2 font-medium">Student</th>
+                    <th className="whitespace-nowrap border-b border-r border-border px-3 py-2 text-right font-medium">%</th>
+                    {visibleDays.map((day) => (
+                      <th key={day.date} className="border-b border-r border-border px-2 py-2 text-center font-medium">
                         {day.label}
                       </th>
                     ))}
-                    <th className="px-3 py-2 text-right font-medium">%</th>
                   </tr>
                 </thead>
                 <tbody>
                   {summary.rows.map((row) => (
-                    <tr key={row.studentId} className="border-t">
-                      <td className="sticky left-0 z-10 bg-background px-3 py-2">
+                    <tr key={row.studentId}>
+                      <td className="sticky left-0 z-20 min-w-56 border-b border-r border-border bg-background px-3 py-2">
                         <div className="font-medium">{row.studentName}</div>
                         <div className="text-xs text-muted-foreground">{row.regNumber}</div>
                       </td>
-                      {summary.days.map((day) => {
+                      <td className="whitespace-nowrap border-b border-r border-border px-3 py-2 text-right font-medium">{row.attendancePercentage}%</td>
+                      {visibleDays.map((day) => {
                         const rawStatus = row.statusByDate[day.date] ?? "-"
                         const view = statusView[rawStatus] ?? statusView["-"]
 
                         return (
-                          <td key={`${row.studentId}-${day.date}`} className="px-2 py-2 text-center">
+                          <td key={`${row.studentId}-${day.date}`} className="border-b border-r border-border px-2 py-2 text-center">
                             <span className={view.className}>{view.label}</span>
                           </td>
                         )
                       })}
-                      <td className="px-3 py-2 text-right font-medium">{row.attendancePercentage}%</td>
                     </tr>
                   ))}
                 </tbody>

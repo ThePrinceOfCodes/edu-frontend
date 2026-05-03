@@ -183,7 +183,7 @@ export const resourceService = {
       body: input,
     })
   },
-  getAttendanceSummary(params?: { school?: string; termId?: string }) {
+  getAttendanceSummary(params?: { school?: string; termId?: string; classId?: string }) {
     return request<AttendanceSummary>(`/api/attendance/summary${toQueryString(params)}`)
   },
 

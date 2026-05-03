@@ -399,6 +399,10 @@ export interface AttendanceSummaryRow {
   studentId: string
   studentName: string
   regNumber: string
+  gender: "male" | "female"
+  classId: string
+  classCode?: string | null
+  className?: string | null
   attendancePercentage: number
   statusByDate: Record<string, string>
 }

@@ -32,9 +32,27 @@ export default function SchoolsPage() {
   const [selectedSchoolTypes, setSelectedSchoolTypes] = useState<string[]>([])
   const [selectedClasses, setSelectedClasses] = useState<string[]>([])
   const [address, setAddress] = useState("")
+  const [schoolCode, setSchoolCode] = useState("")
   const [state, setState] = useState("")
   const [localGovernment, setLocalGovernment] = useState("")
   const [district, setDistrict] = useState("")
+  const [ward, setWard] = useState("")
+  const [schoolLocation, setSchoolLocation] = useState("")
+  const [categoryOfSchool, setCategoryOfSchool] = useState("")
+  const [accessRoadCondition, setAccessRoadCondition] = useState("")
+  const [typeOfSchool, setTypeOfSchool] = useState("")
+  const [shiftSystem, setShiftSystem] = useState("")
+  const [numberOfClasses, setNumberOfClasses] = useState("")
+  const [numberOfClassroomsAvailable, setNumberOfClassroomsAvailable] = useState("")
+  const [facilitiesAvailable, setFacilitiesAvailable] = useState("")
+  const [headTeacherName, setHeadTeacherName] = useState("")
+  const [headTeacherPhoneNumber, setHeadTeacherPhoneNumber] = useState("")
+  const [assistantHeadTeacherName, setAssistantHeadTeacherName] = useState("")
+  const [assistantHeadTeacherPhoneNumber, setAssistantHeadTeacherPhoneNumber] = useState("")
+  const [numberOfAcademicStaff, setNumberOfAcademicStaff] = useState("")
+  const [numberOfNonAcademicStaff, setNumberOfNonAcademicStaff] = useState("")
+  const [totalEnrolledStudents, setTotalEnrolledStudents] = useState("")
+  const [gallery, setGallery] = useState("")
   const [longitude, setLongitude] = useState("")
   const [latitude, setLatitude] = useState("")
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -174,9 +192,27 @@ export default function SchoolsPage() {
         schoolTypes: selectedSchoolTypes,
         classes: selectedClasses.length > 0 ? selectedClasses : undefined,
         address: address || undefined,
+        schoolCode: schoolCode || undefined,
         state: state || undefined,
         localGovernment: localGovernment || undefined,
         district: district || undefined,
+        ward: ward || undefined,
+        schoolLocation: schoolLocation || undefined,
+        categoryOfSchool: categoryOfSchool || undefined,
+        accessRoadCondition: accessRoadCondition || undefined,
+        typeOfSchool: typeOfSchool || undefined,
+        shiftSystem: shiftSystem || undefined,
+        numberOfClasses: numberOfClasses ? Number(numberOfClasses) : undefined,
+        numberOfClassroomsAvailable: numberOfClassroomsAvailable ? Number(numberOfClassroomsAvailable) : undefined,
+        facilitiesAvailable: facilitiesAvailable || undefined,
+        headTeacherName: headTeacherName || undefined,
+        headTeacherPhoneNumber: headTeacherPhoneNumber || undefined,
+        assistantHeadTeacherName: assistantHeadTeacherName || undefined,
+        assistantHeadTeacherPhoneNumber: assistantHeadTeacherPhoneNumber || undefined,
+        numberOfAcademicStaff: numberOfAcademicStaff ? Number(numberOfAcademicStaff) : undefined,
+        numberOfNonAcademicStaff: numberOfNonAcademicStaff ? Number(numberOfNonAcademicStaff) : undefined,
+        totalEnrolledStudents: totalEnrolledStudents ? Number(totalEnrolledStudents) : undefined,
+        gallery: gallery || undefined,
         longitude: longitude ? Number(longitude) : undefined,
         latitude: latitude ? Number(latitude) : undefined,
       })
@@ -186,9 +222,27 @@ export default function SchoolsPage() {
       setSelectedSchoolTypes([])
       setSelectedClasses([])
       setAddress("")
+      setSchoolCode("")
       setState("")
       setLocalGovernment("")
       setDistrict("")
+      setWard("")
+      setSchoolLocation("")
+      setCategoryOfSchool("")
+      setAccessRoadCondition("")
+      setTypeOfSchool("")
+      setShiftSystem("")
+      setNumberOfClasses("")
+      setNumberOfClassroomsAvailable("")
+      setFacilitiesAvailable("")
+      setHeadTeacherName("")
+      setHeadTeacherPhoneNumber("")
+      setAssistantHeadTeacherName("")
+      setAssistantHeadTeacherPhoneNumber("")
+      setNumberOfAcademicStaff("")
+      setNumberOfNonAcademicStaff("")
+      setTotalEnrolledStudents("")
+      setGallery("")
       setLongitude("")
       setLatitude("")
       setIsCreateOpen(false)
@@ -266,6 +320,14 @@ export default function SchoolsPage() {
                     />
                   </div>
                   <div className="space-y-2">
+                    <Label htmlFor="school-code">School Code</Label>
+                    <Input
+                      id="school-code"
+                      value={schoolCode}
+                      onChange={(event) => setSchoolCode(event.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
                     <Label htmlFor="school-state">State</Label>
                     <Input
                       id="school-state"
@@ -287,6 +349,168 @@ export default function SchoolsPage() {
                       id="school-district"
                       value={district}
                       onChange={(event) => setDistrict(event.target.value)}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="school-ward">Ward</Label>
+                      <Input
+                        id="school-ward"
+                        value={ward}
+                        onChange={(event) => setWard(event.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="school-location">School Location</Label>
+                      <Input
+                        id="school-location"
+                        value={schoolLocation}
+                        onChange={(event) => setSchoolLocation(event.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="school-category">Category of School</Label>
+                      <Input
+                        id="school-category"
+                        value={categoryOfSchool}
+                        onChange={(event) => setCategoryOfSchool(event.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="school-road-condition">Access Road Condition</Label>
+                      <Input
+                        id="school-road-condition"
+                        value={accessRoadCondition}
+                        onChange={(event) => setAccessRoadCondition(event.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="school-type-text">Type of School</Label>
+                      <Input
+                        id="school-type-text"
+                        value={typeOfSchool}
+                        onChange={(event) => setTypeOfSchool(event.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="school-shift-system">Shift System</Label>
+                      <Input
+                        id="school-shift-system"
+                        value={shiftSystem}
+                        onChange={(event) => setShiftSystem(event.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="school-number-of-classes">Number of Classes</Label>
+                      <Input
+                        id="school-number-of-classes"
+                        type="number"
+                        min="0"
+                        value={numberOfClasses}
+                        onChange={(event) => setNumberOfClasses(event.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="school-number-of-classrooms">Number of Classrooms Available</Label>
+                      <Input
+                        id="school-number-of-classrooms"
+                        type="number"
+                        min="0"
+                        value={numberOfClassroomsAvailable}
+                        onChange={(event) => setNumberOfClassroomsAvailable(event.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="school-facilities-available">Facilities Available</Label>
+                    <Input
+                      id="school-facilities-available"
+                      value={facilitiesAvailable}
+                      onChange={(event) => setFacilitiesAvailable(event.target.value)}
+                      placeholder="e.g labs, computers, library"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="school-head-teacher-name">Head Teacher Name</Label>
+                      <Input
+                        id="school-head-teacher-name"
+                        value={headTeacherName}
+                        onChange={(event) => setHeadTeacherName(event.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="school-head-teacher-phone">Head Teacher Phone</Label>
+                      <Input
+                        id="school-head-teacher-phone"
+                        value={headTeacherPhoneNumber}
+                        onChange={(event) => setHeadTeacherPhoneNumber(event.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="school-assistant-head-teacher-name">Asst. Head Teacher Name</Label>
+                      <Input
+                        id="school-assistant-head-teacher-name"
+                        value={assistantHeadTeacherName}
+                        onChange={(event) => setAssistantHeadTeacherName(event.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="school-assistant-head-teacher-phone">Asst. Head Teacher Phone</Label>
+                      <Input
+                        id="school-assistant-head-teacher-phone"
+                        value={assistantHeadTeacherPhoneNumber}
+                        onChange={(event) => setAssistantHeadTeacherPhoneNumber(event.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="school-academic-staff-count">No. of Academic Staff</Label>
+                      <Input
+                        id="school-academic-staff-count"
+                        type="number"
+                        min="0"
+                        value={numberOfAcademicStaff}
+                        onChange={(event) => setNumberOfAcademicStaff(event.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="school-non-academic-staff-count">No. of Non-Academic Staff</Label>
+                      <Input
+                        id="school-non-academic-staff-count"
+                        type="number"
+                        min="0"
+                        value={numberOfNonAcademicStaff}
+                        onChange={(event) => setNumberOfNonAcademicStaff(event.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="school-total-enrolled-students">Total Enrolled Students</Label>
+                      <Input
+                        id="school-total-enrolled-students"
+                        type="number"
+                        min="0"
+                        value={totalEnrolledStudents}
+                        onChange={(event) => setTotalEnrolledStudents(event.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="school-gallery">Gallery</Label>
+                    <Input
+                      id="school-gallery"
+                      value={gallery}
+                      onChange={(event) => setGallery(event.target.value)}
+                      placeholder="Image URL or reference"
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-3">

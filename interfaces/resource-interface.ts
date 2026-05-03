@@ -49,11 +49,29 @@ export interface School {
   adminUser?: string | null
   adminUsers?: string[]
   address?: string
+  schoolCode?: string
   state?: string
   localGovernment?: string
   district?: string
+  ward?: string
+  schoolLocation?: string
+  categoryOfSchool?: string
+  accessRoadCondition?: string
+  typeOfSchool?: string
+  shiftSystem?: string
+  facilitiesAvailable?: string
+  headTeacherName?: string
+  headTeacherPhoneNumber?: string
+  assistantHeadTeacherName?: string
+  assistantHeadTeacherPhoneNumber?: string
   longitude?: number
   latitude?: number
+  numberOfClasses?: number
+  numberOfClassroomsAvailable?: number
+  numberOfAcademicStaff?: number
+  numberOfNonAcademicStaff?: number
+  totalEnrolledStudents?: number
+  gallery?: string
   status?: "active" | "inactive"
 }
 
@@ -63,11 +81,29 @@ export interface CreateSchoolInput {
   schoolTypes?: string[]
   classes?: string[]
   address?: string
+  schoolCode?: string
   state?: string
   localGovernment?: string
   district?: string
+  ward?: string
+  schoolLocation?: string
+  categoryOfSchool?: string
+  accessRoadCondition?: string
+  typeOfSchool?: string
+  shiftSystem?: string
+  facilitiesAvailable?: string
+  headTeacherName?: string
+  headTeacherPhoneNumber?: string
+  assistantHeadTeacherName?: string
+  assistantHeadTeacherPhoneNumber?: string
   longitude?: number
   latitude?: number
+  numberOfClasses?: number
+  numberOfClassroomsAvailable?: number
+  numberOfAcademicStaff?: number
+  numberOfNonAcademicStaff?: number
+  totalEnrolledStudents?: number
+  gallery?: string
   status?: "active" | "inactive"
 }
 
@@ -75,11 +111,29 @@ export interface UpdateSchoolInput {
   name?: string
   schoolTypes?: string[]
   address?: string | null
+  schoolCode?: string | null
   state?: string | null
   localGovernment?: string | null
   district?: string | null
+  ward?: string | null
+  schoolLocation?: string | null
+  categoryOfSchool?: string | null
+  accessRoadCondition?: string | null
+  typeOfSchool?: string | null
+  shiftSystem?: string | null
+  facilitiesAvailable?: string | null
+  headTeacherName?: string | null
+  headTeacherPhoneNumber?: string | null
+  assistantHeadTeacherName?: string | null
+  assistantHeadTeacherPhoneNumber?: string | null
   longitude?: number
   latitude?: number
+  numberOfClasses?: number
+  numberOfClassroomsAvailable?: number
+  numberOfAcademicStaff?: number
+  numberOfNonAcademicStaff?: number
+  totalEnrolledStudents?: number
+  gallery?: string | null
   adminUser?: string | null
   adminUsers?: string[]
   status?: "active" | "inactive"
@@ -89,11 +143,29 @@ export interface BulkCreateSchoolInput {
   name: string
   schoolBoard?: string
   address?: string
+  schoolCode?: string
   state?: string
   localGovernment?: string
   district?: string
+  ward?: string
+  schoolLocation?: string
+  categoryOfSchool?: string
+  accessRoadCondition?: string
+  typeOfSchool?: string
+  shiftSystem?: string
+  facilitiesAvailable?: string
+  headTeacherName?: string
+  headTeacherPhoneNumber?: string
+  assistantHeadTeacherName?: string
+  assistantHeadTeacherPhoneNumber?: string
   longitude?: number
   latitude?: number
+  numberOfClasses?: number
+  numberOfClassroomsAvailable?: number
+  numberOfAcademicStaff?: number
+  numberOfNonAcademicStaff?: number
+  totalEnrolledStudents?: number
+  gallery?: string
   status?: "active" | "inactive"
 }
 

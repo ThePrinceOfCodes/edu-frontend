@@ -41,6 +41,15 @@ function parseNumber(value: unknown) {
   return Number.isFinite(parsed) ? parsed : undefined
 }
 
+function parseText(value: unknown) {
+  if (value === null || value === undefined) {
+    return undefined
+  }
+
+  const trimmed = String(value).trim()
+  return trimmed || undefined
+}
+
 function normalizeHeaderKey(value: string) {
   return value.toLowerCase().replace(/[^a-z]/g, "")
 }
@@ -73,12 +82,49 @@ function toBulkSchoolPayload(row: Record<string, unknown>, schoolBoardId: string
   return {
     name,
     schoolBoard: schoolBoardId,
-    address: String(getRowValue(row, ["address"]) ?? "").trim() || undefined,
-    state: String(getRowValue(row, ["state"]) ?? "").trim() || undefined,
-    localGovernment: String(getRowValue(row, ["localGovernment", "local government", "lga"]) ?? "").trim() || undefined,
-    district: String(getRowValue(row, ["district"]) ?? "").trim() || undefined,
-    longitude: parseNumber(getRowValue(row, ["longitude", "long"])),
-    latitude: parseNumber(getRowValue(row, ["latitude", "lat"])),
+    address: parseText(getRowValue(row, ["address", "school address"])),
+    schoolCode: parseText(getRowValue(row, ["school code", "code"])),
+    state: parseText(getRowValue(row, ["state"])),
+    localGovernment: parseText(getRowValue(row, ["localGovernment", "local government", "lga"])),
+    district: parseText(getRowValue(row, ["district"])),
+    ward: parseText(getRowValue(row, ["ward"])),
+    schoolLocation: parseText(getRowValue(row, ["school location", "location"])),
+    categoryOfSchool: parseText(getRowValue(row, ["category of school", "school category"])),
+    accessRoadCondition: parseText(getRowValue(row, ["access road condition", "road condition"])),
+    typeOfSchool: parseText(getRowValue(row, ["type of school", "school type"])),
+    shiftSystem: parseText(getRowValue(row, ["shift system", "shieft system"])),
+    facilitiesAvailable: parseText(
+      getRowValue(row, [
+        "facilities available",
+        "facilities available (e.g labs, computers, library, staff room, etc)",
+      ])
+    ),
+    headTeacherName: parseText(getRowValue(row, ["name of head teacher", "head teacher name"])),
+    headTeacherPhoneNumber: parseText(
+      getRowValue(row, ["phone number of head teacher", "head teacher phone number"])
+    ),
+    assistantHeadTeacherName: parseText(
+      getRowValue(row, ["name of asst head teacher", "name of asst. head teacher", "assistant head teacher name"])
+    ),
+    assistantHeadTeacherPhoneNumber: parseText(
+      getRowValue(row, [
+        "phone number of asst head teacher",
+        "phone number of asst. head teacher",
+        "assistant head teacher phone number",
+      ])
+    ),
+    longitude: parseNumber(getRowValue(row, ["longitude", "long", "longitue"])),
+    latitude: parseNumber(getRowValue(row, ["latitude", "lat", "latiude"])),
+    numberOfClasses: parseNumber(getRowValue(row, ["number of classes"])),
+    numberOfClassroomsAvailable: parseNumber(getRowValue(row, ["number of classrooms available"])),
+    numberOfAcademicStaff: parseNumber(getRowValue(row, ["number of academic staff", "number of accademic staff"])),
+    numberOfNonAcademicStaff: parseNumber(
+      getRowValue(row, ["number of non academic staff", "number of non accademic staff"])
+    ),
+    totalEnrolledStudents: parseNumber(
+      getRowValue(row, ["what is the total number of students currently enrolled in the school", "total enrolled students"])
+    ),
+    gallery: parseText(getRowValue(row, ["gallery", "gallary"])),
     status,
   }
 }
@@ -95,9 +141,27 @@ export default function SchoolBoardViewPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [createName, setCreateName] = useState("")
   const [createAddress, setCreateAddress] = useState("")
+  const [createSchoolCode, setCreateSchoolCode] = useState("")
   const [createState, setCreateState] = useState("")
   const [createLocalGovernment, setCreateLocalGovernment] = useState("")
   const [createDistrict, setCreateDistrict] = useState("")
+  const [createWard, setCreateWard] = useState("")
+  const [createSchoolLocation, setCreateSchoolLocation] = useState("")
+  const [createCategoryOfSchool, setCreateCategoryOfSchool] = useState("")
+  const [createAccessRoadCondition, setCreateAccessRoadCondition] = useState("")
+  const [createTypeOfSchool, setCreateTypeOfSchool] = useState("")
+  const [createShiftSystem, setCreateShiftSystem] = useState("")
+  const [createNumberOfClasses, setCreateNumberOfClasses] = useState("")
+  const [createNumberOfClassroomsAvailable, setCreateNumberOfClassroomsAvailable] = useState("")
+  const [createFacilitiesAvailable, setCreateFacilitiesAvailable] = useState("")
+  const [createHeadTeacherName, setCreateHeadTeacherName] = useState("")
+  const [createHeadTeacherPhoneNumber, setCreateHeadTeacherPhoneNumber] = useState("")
+  const [createAssistantHeadTeacherName, setCreateAssistantHeadTeacherName] = useState("")
+  const [createAssistantHeadTeacherPhoneNumber, setCreateAssistantHeadTeacherPhoneNumber] = useState("")
+  const [createNumberOfAcademicStaff, setCreateNumberOfAcademicStaff] = useState("")
+  const [createNumberOfNonAcademicStaff, setCreateNumberOfNonAcademicStaff] = useState("")
+  const [createTotalEnrolledStudents, setCreateTotalEnrolledStudents] = useState("")
+  const [createGallery, setCreateGallery] = useState("")
   const [createLongitude, setCreateLongitude] = useState("")
   const [createLatitude, setCreateLatitude] = useState("")
   const [createStatus, setCreateStatus] = useState<"active" | "inactive">("active")
@@ -149,9 +213,29 @@ export default function SchoolBoardViewPage() {
         name: createName,
         schoolBoard: schoolBoardId,
         address: createAddress || undefined,
+        schoolCode: createSchoolCode || undefined,
         state: createState || undefined,
         localGovernment: createLocalGovernment || undefined,
         district: createDistrict || undefined,
+        ward: createWard || undefined,
+        schoolLocation: createSchoolLocation || undefined,
+        categoryOfSchool: createCategoryOfSchool || undefined,
+        accessRoadCondition: createAccessRoadCondition || undefined,
+        typeOfSchool: createTypeOfSchool || undefined,
+        shiftSystem: createShiftSystem || undefined,
+        numberOfClasses: createNumberOfClasses ? Number(createNumberOfClasses) : undefined,
+        numberOfClassroomsAvailable: createNumberOfClassroomsAvailable
+          ? Number(createNumberOfClassroomsAvailable)
+          : undefined,
+        facilitiesAvailable: createFacilitiesAvailable || undefined,
+        headTeacherName: createHeadTeacherName || undefined,
+        headTeacherPhoneNumber: createHeadTeacherPhoneNumber || undefined,
+        assistantHeadTeacherName: createAssistantHeadTeacherName || undefined,
+        assistantHeadTeacherPhoneNumber: createAssistantHeadTeacherPhoneNumber || undefined,
+        numberOfAcademicStaff: createNumberOfAcademicStaff ? Number(createNumberOfAcademicStaff) : undefined,
+        numberOfNonAcademicStaff: createNumberOfNonAcademicStaff ? Number(createNumberOfNonAcademicStaff) : undefined,
+        totalEnrolledStudents: createTotalEnrolledStudents ? Number(createTotalEnrolledStudents) : undefined,
+        gallery: createGallery || undefined,
         longitude: createLongitude ? Number(createLongitude) : undefined,
         latitude: createLatitude ? Number(createLatitude) : undefined,
         status: createStatus,
@@ -159,9 +243,27 @@ export default function SchoolBoardViewPage() {
 
       setCreateName("")
       setCreateAddress("")
+      setCreateSchoolCode("")
       setCreateState("")
       setCreateLocalGovernment("")
       setCreateDistrict("")
+      setCreateWard("")
+      setCreateSchoolLocation("")
+      setCreateCategoryOfSchool("")
+      setCreateAccessRoadCondition("")
+      setCreateTypeOfSchool("")
+      setCreateShiftSystem("")
+      setCreateNumberOfClasses("")
+      setCreateNumberOfClassroomsAvailable("")
+      setCreateFacilitiesAvailable("")
+      setCreateHeadTeacherName("")
+      setCreateHeadTeacherPhoneNumber("")
+      setCreateAssistantHeadTeacherName("")
+      setCreateAssistantHeadTeacherPhoneNumber("")
+      setCreateNumberOfAcademicStaff("")
+      setCreateNumberOfNonAcademicStaff("")
+      setCreateTotalEnrolledStudents("")
+      setCreateGallery("")
       setCreateLongitude("")
       setCreateLatitude("")
       setCreateStatus("active")
@@ -257,6 +359,14 @@ export default function SchoolBoardViewPage() {
                     onChange={(event) => setCreateAddress(event.target.value)}
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="create-school-code">School Code</Label>
+                  <Input
+                    id="create-school-code"
+                    value={createSchoolCode}
+                    onChange={(event) => setCreateSchoolCode(event.target.value)}
+                  />
+                </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
                     <Label htmlFor="create-school-state">State</Label>
@@ -274,6 +384,168 @@ export default function SchoolBoardViewPage() {
                       onChange={(event) => setCreateLocalGovernment(event.target.value)}
                     />
                   </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="create-school-ward">Ward</Label>
+                    <Input
+                      id="create-school-ward"
+                      value={createWard}
+                      onChange={(event) => setCreateWard(event.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="create-school-location">School Location</Label>
+                    <Input
+                      id="create-school-location"
+                      value={createSchoolLocation}
+                      onChange={(event) => setCreateSchoolLocation(event.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="create-school-category">Category of School</Label>
+                    <Input
+                      id="create-school-category"
+                      value={createCategoryOfSchool}
+                      onChange={(event) => setCreateCategoryOfSchool(event.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="create-school-road">Access Road Condition</Label>
+                    <Input
+                      id="create-school-road"
+                      value={createAccessRoadCondition}
+                      onChange={(event) => setCreateAccessRoadCondition(event.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="create-school-type">Type of School</Label>
+                    <Input
+                      id="create-school-type"
+                      value={createTypeOfSchool}
+                      onChange={(event) => setCreateTypeOfSchool(event.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="create-school-shift">Shift System</Label>
+                    <Input
+                      id="create-school-shift"
+                      value={createShiftSystem}
+                      onChange={(event) => setCreateShiftSystem(event.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="create-school-classes">Number of Classes</Label>
+                    <Input
+                      id="create-school-classes"
+                      type="number"
+                      min="0"
+                      value={createNumberOfClasses}
+                      onChange={(event) => setCreateNumberOfClasses(event.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="create-school-classrooms">Number of Classrooms Available</Label>
+                    <Input
+                      id="create-school-classrooms"
+                      type="number"
+                      min="0"
+                      value={createNumberOfClassroomsAvailable}
+                      onChange={(event) => setCreateNumberOfClassroomsAvailable(event.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="create-school-facilities">Facilities Available</Label>
+                  <Input
+                    id="create-school-facilities"
+                    value={createFacilitiesAvailable}
+                    onChange={(event) => setCreateFacilitiesAvailable(event.target.value)}
+                    placeholder="e.g labs, computers, library"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="create-head-teacher-name">Head Teacher Name</Label>
+                    <Input
+                      id="create-head-teacher-name"
+                      value={createHeadTeacherName}
+                      onChange={(event) => setCreateHeadTeacherName(event.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="create-head-teacher-phone">Head Teacher Phone</Label>
+                    <Input
+                      id="create-head-teacher-phone"
+                      value={createHeadTeacherPhoneNumber}
+                      onChange={(event) => setCreateHeadTeacherPhoneNumber(event.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="create-assistant-head-teacher-name">Asst. Head Teacher Name</Label>
+                    <Input
+                      id="create-assistant-head-teacher-name"
+                      value={createAssistantHeadTeacherName}
+                      onChange={(event) => setCreateAssistantHeadTeacherName(event.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="create-assistant-head-teacher-phone">Asst. Head Teacher Phone</Label>
+                    <Input
+                      id="create-assistant-head-teacher-phone"
+                      value={createAssistantHeadTeacherPhoneNumber}
+                      onChange={(event) => setCreateAssistantHeadTeacherPhoneNumber(event.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="create-academic-staff">No. of Academic Staff</Label>
+                    <Input
+                      id="create-academic-staff"
+                      type="number"
+                      min="0"
+                      value={createNumberOfAcademicStaff}
+                      onChange={(event) => setCreateNumberOfAcademicStaff(event.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="create-non-academic-staff">No. of Non-Academic Staff</Label>
+                    <Input
+                      id="create-non-academic-staff"
+                      type="number"
+                      min="0"
+                      value={createNumberOfNonAcademicStaff}
+                      onChange={(event) => setCreateNumberOfNonAcademicStaff(event.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="create-total-students">Total Enrolled Students</Label>
+                    <Input
+                      id="create-total-students"
+                      type="number"
+                      min="0"
+                      value={createTotalEnrolledStudents}
+                      onChange={(event) => setCreateTotalEnrolledStudents(event.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="create-school-gallery">Gallery</Label>
+                  <Input
+                    id="create-school-gallery"
+                    value={createGallery}
+                    onChange={(event) => setCreateGallery(event.target.value)}
+                    placeholder="Image URL or reference"
+                  />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
@@ -341,7 +613,11 @@ export default function SchoolBoardViewPage() {
                   <Input id="import-schools-file" ref={importFileRef} type="file" accept=".csv,.xlsx,.xls" required />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Expected columns: name, address, state, localGovernment (or lga), district, longitude, latitude, status.
+                  Expected columns include: School Name, School Address, School Code, Latiude, Longitue, LGA, District,
+                  Ward, School Location, Category of school, Access Road Condition, Type of school, Shieft System,
+                  Number of Classes, Number of Classrooms Available, Facilities Available, Name/Phone of Head teacher,
+                  Name/Phone of Asst. Head teacher, Number of Accademic/Non Accademic Staff, total enrolled students,
+                  GALLARY.
                 </p>
 
                 {importError ? <p className="text-sm text-destructive">{importError}</p> : null}

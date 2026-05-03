@@ -167,6 +167,7 @@ export default function SchoolBoardViewPage() {
   const [createStatus, setCreateStatus] = useState<"active" | "inactive">("active")
   const [createError, setCreateError] = useState<string | null>(null)
   const [isCreating, setIsCreating] = useState(false)
+  const [createStep, setCreateStep] = useState<1 | 2>(1)
 
   const [isImportOpen, setIsImportOpen] = useState(false)
   const [importError, setImportError] = useState<string | null>(null)
@@ -268,12 +269,83 @@ export default function SchoolBoardViewPage() {
       setCreateLatitude("")
       setCreateStatus("active")
       setIsCreateOpen(false)
+      setCreateStep(1)
       await loadData()
     } catch (submitError) {
       setCreateError(submitError instanceof Error ? submitError.message : "Unable to create school.")
     } finally {
       setIsCreating(false)
     }
+  }
+
+  function handleCreateOpenChange(open: boolean) {
+    setIsCreateOpen(open)
+
+    if (!open) {
+      setCreateStep(1)
+      setCreateError(null)
+    }
+  }
+
+  function downloadImportTemplate() {
+    const headers = [
+      "School Name",
+      "School Address",
+      "School Code",
+      "Latiude",
+      "Longitue",
+      "LGA",
+      "District",
+      "Ward",
+      "School Location",
+      "Category of school",
+      "Access Road Condition",
+      "Type of school",
+      "Shieft System",
+      "Number of Classes",
+      "Number of Classrooms Available",
+      "Facilities Available (e.g labs, computers, Library, staff room,  etc)",
+      "Name of Head teacher",
+      "Phone number of Head teacher",
+      "Name of Asst. Head teacher",
+      "Phone number of Asst. Head teacher",
+      "Number of Accademic Staff",
+      "Number of Non Accademic Staff",
+      "What is the total number of students currently enrolled in the school?",
+      "GALLARY",
+    ]
+
+    const sampleRow = [
+      "Springfield Primary School",
+      "12 Unity Road, Central Ward",
+      "SPS-001",
+      "9.0765",
+      "7.3986",
+      "Municipal LGA",
+      "Central District",
+      "Ward 3",
+      "Urban",
+      "Public",
+      "Tarred",
+      "Primary",
+      "Single",
+      "24",
+      "20",
+      "Library, Computer Lab, Staff Room",
+      "Amina Yusuf",
+      "08030000001",
+      "Bello Musa",
+      "08030000002",
+      "32",
+      "12",
+      "840",
+      "https://example.com/school-gallery",
+    ]
+
+    const workbook = XLSX.utils.book_new()
+    const sheet = XLSX.utils.aoa_to_sheet([headers, sampleRow])
+    XLSX.utils.book_append_sheet(workbook, sheet, "Schools Information")
+    XLSX.writeFile(workbook, "school-import-template.xlsx")
   }
 
   async function handleImportSchools(event: FormEvent<HTMLFormElement>) {
@@ -334,7 +406,7 @@ export default function SchoolBoardViewPage() {
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">School Board View</h2>
         <div className="flex items-center gap-2">
-          <Modal open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+          <Modal open={isCreateOpen} onOpenChange={handleCreateOpenChange}>
             <ModalTrigger render={<Button />}>Create School</ModalTrigger>
             <ModalContent>
               <ModalHeader>
@@ -342,263 +414,296 @@ export default function SchoolBoardViewPage() {
                 <ModalDescription>Add a school under this school board.</ModalDescription>
               </ModalHeader>
               <form className="space-y-3" onSubmit={handleCreateSchool}>
-                <div className="space-y-2">
-                  <Label htmlFor="create-school-name">Name</Label>
-                  <Input
-                    id="create-school-name"
-                    value={createName}
-                    onChange={(event) => setCreateName(event.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="create-school-address">Address</Label>
-                  <Input
-                    id="create-school-address"
-                    value={createAddress}
-                    onChange={(event) => setCreateAddress(event.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="create-school-code">School Code</Label>
-                  <Input
-                    id="create-school-code"
-                    value={createSchoolCode}
-                    onChange={(event) => setCreateSchoolCode(event.target.value)}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="create-school-state">State</Label>
-                    <Input
-                      id="create-school-state"
-                      value={createState}
-                      onChange={(event) => setCreateState(event.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="create-school-lga">Local Government</Label>
-                    <Input
-                      id="create-school-lga"
-                      value={createLocalGovernment}
-                      onChange={(event) => setCreateLocalGovernment(event.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="create-school-ward">Ward</Label>
-                    <Input
-                      id="create-school-ward"
-                      value={createWard}
-                      onChange={(event) => setCreateWard(event.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="create-school-location">School Location</Label>
-                    <Input
-                      id="create-school-location"
-                      value={createSchoolLocation}
-                      onChange={(event) => setCreateSchoolLocation(event.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="create-school-category">Category of School</Label>
-                    <Input
-                      id="create-school-category"
-                      value={createCategoryOfSchool}
-                      onChange={(event) => setCreateCategoryOfSchool(event.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="create-school-road">Access Road Condition</Label>
-                    <Input
-                      id="create-school-road"
-                      value={createAccessRoadCondition}
-                      onChange={(event) => setCreateAccessRoadCondition(event.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="create-school-type">Type of School</Label>
-                    <Input
-                      id="create-school-type"
-                      value={createTypeOfSchool}
-                      onChange={(event) => setCreateTypeOfSchool(event.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="create-school-shift">Shift System</Label>
-                    <Input
-                      id="create-school-shift"
-                      value={createShiftSystem}
-                      onChange={(event) => setCreateShiftSystem(event.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="create-school-classes">Number of Classes</Label>
-                    <Input
-                      id="create-school-classes"
-                      type="number"
-                      min="0"
-                      value={createNumberOfClasses}
-                      onChange={(event) => setCreateNumberOfClasses(event.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="create-school-classrooms">Number of Classrooms Available</Label>
-                    <Input
-                      id="create-school-classrooms"
-                      type="number"
-                      min="0"
-                      value={createNumberOfClassroomsAvailable}
-                      onChange={(event) => setCreateNumberOfClassroomsAvailable(event.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="create-school-facilities">Facilities Available</Label>
-                  <Input
-                    id="create-school-facilities"
-                    value={createFacilitiesAvailable}
-                    onChange={(event) => setCreateFacilitiesAvailable(event.target.value)}
-                    placeholder="e.g labs, computers, library"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="create-head-teacher-name">Head Teacher Name</Label>
-                    <Input
-                      id="create-head-teacher-name"
-                      value={createHeadTeacherName}
-                      onChange={(event) => setCreateHeadTeacherName(event.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="create-head-teacher-phone">Head Teacher Phone</Label>
-                    <Input
-                      id="create-head-teacher-phone"
-                      value={createHeadTeacherPhoneNumber}
-                      onChange={(event) => setCreateHeadTeacherPhoneNumber(event.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="create-assistant-head-teacher-name">Asst. Head Teacher Name</Label>
-                    <Input
-                      id="create-assistant-head-teacher-name"
-                      value={createAssistantHeadTeacherName}
-                      onChange={(event) => setCreateAssistantHeadTeacherName(event.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="create-assistant-head-teacher-phone">Asst. Head Teacher Phone</Label>
-                    <Input
-                      id="create-assistant-head-teacher-phone"
-                      value={createAssistantHeadTeacherPhoneNumber}
-                      onChange={(event) => setCreateAssistantHeadTeacherPhoneNumber(event.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="create-academic-staff">No. of Academic Staff</Label>
-                    <Input
-                      id="create-academic-staff"
-                      type="number"
-                      min="0"
-                      value={createNumberOfAcademicStaff}
-                      onChange={(event) => setCreateNumberOfAcademicStaff(event.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="create-non-academic-staff">No. of Non-Academic Staff</Label>
-                    <Input
-                      id="create-non-academic-staff"
-                      type="number"
-                      min="0"
-                      value={createNumberOfNonAcademicStaff}
-                      onChange={(event) => setCreateNumberOfNonAcademicStaff(event.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="create-total-students">Total Enrolled Students</Label>
-                    <Input
-                      id="create-total-students"
-                      type="number"
-                      min="0"
-                      value={createTotalEnrolledStudents}
-                      onChange={(event) => setCreateTotalEnrolledStudents(event.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="create-school-gallery">Gallery</Label>
-                  <Input
-                    id="create-school-gallery"
-                    value={createGallery}
-                    onChange={(event) => setCreateGallery(event.target.value)}
-                    placeholder="Image URL or reference"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="create-school-district">District</Label>
-                    <Input
-                      id="create-school-district"
-                      value={createDistrict}
-                      onChange={(event) => setCreateDistrict(event.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="create-school-status">Status</Label>
-                    <select
-                      id="create-school-status"
-                      className="h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm"
-                      value={createStatus}
-                      onChange={(event) => setCreateStatus(event.target.value as "active" | "inactive")}
-                    >
-                      <option value="active">active</option>
-                      <option value="inactive">inactive</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="create-school-longitude">Longitude</Label>
-                    <Input
-                      id="create-school-longitude"
-                      type="number"
-                      step="any"
-                      value={createLongitude}
-                      onChange={(event) => setCreateLongitude(event.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="create-school-latitude">Latitude</Label>
-                    <Input
-                      id="create-school-latitude"
-                      type="number"
-                      step="any"
-                      value={createLatitude}
-                      onChange={(event) => setCreateLatitude(event.target.value)}
-                    />
-                  </div>
-                </div>
+                <p className="text-xs text-muted-foreground">Step {createStep} of 2</p>
+
+                {createStep === 1 ? (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="create-school-name">Name</Label>
+                      <Input
+                        id="create-school-name"
+                        value={createName}
+                        onChange={(event) => setCreateName(event.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="create-school-address">Address</Label>
+                      <Input
+                        id="create-school-address"
+                        value={createAddress}
+                        onChange={(event) => setCreateAddress(event.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="create-school-code">School Code</Label>
+                      <Input
+                        id="create-school-code"
+                        value={createSchoolCode}
+                        onChange={(event) => setCreateSchoolCode(event.target.value)}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2">
+                        <Label htmlFor="create-school-state">State</Label>
+                        <Input
+                          id="create-school-state"
+                          value={createState}
+                          onChange={(event) => setCreateState(event.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="create-school-lga">Local Government</Label>
+                        <Input
+                          id="create-school-lga"
+                          value={createLocalGovernment}
+                          onChange={(event) => setCreateLocalGovernment(event.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2">
+                        <Label htmlFor="create-school-district">District</Label>
+                        <Input
+                          id="create-school-district"
+                          value={createDistrict}
+                          onChange={(event) => setCreateDistrict(event.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="create-school-ward">Ward</Label>
+                        <Input
+                          id="create-school-ward"
+                          value={createWard}
+                          onChange={(event) => setCreateWard(event.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="create-school-location">School Location</Label>
+                      <Input
+                        id="create-school-location"
+                        value={createSchoolLocation}
+                        onChange={(event) => setCreateSchoolLocation(event.target.value)}
+                      />
+                    </div>
+
+                    <div className="flex justify-end">
+                      <Button
+                        type="button"
+                        onClick={() => {
+                          if (!createName.trim()) {
+                            setCreateError("School name is required.")
+                            return
+                          }
+                          setCreateError(null)
+                          setCreateStep(2)
+                        }}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2">
+                        <Label htmlFor="create-school-category">Category of School</Label>
+                        <Input
+                          id="create-school-category"
+                          value={createCategoryOfSchool}
+                          onChange={(event) => setCreateCategoryOfSchool(event.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="create-school-road">Access Road Condition</Label>
+                        <Input
+                          id="create-school-road"
+                          value={createAccessRoadCondition}
+                          onChange={(event) => setCreateAccessRoadCondition(event.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2">
+                        <Label htmlFor="create-school-type">Type of School</Label>
+                        <Input
+                          id="create-school-type"
+                          value={createTypeOfSchool}
+                          onChange={(event) => setCreateTypeOfSchool(event.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="create-school-shift">Shift System</Label>
+                        <Input
+                          id="create-school-shift"
+                          value={createShiftSystem}
+                          onChange={(event) => setCreateShiftSystem(event.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2">
+                        <Label htmlFor="create-school-classes">Number of Classes</Label>
+                        <Input
+                          id="create-school-classes"
+                          type="number"
+                          min="0"
+                          value={createNumberOfClasses}
+                          onChange={(event) => setCreateNumberOfClasses(event.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="create-school-classrooms">Number of Classrooms Available</Label>
+                        <Input
+                          id="create-school-classrooms"
+                          type="number"
+                          min="0"
+                          value={createNumberOfClassroomsAvailable}
+                          onChange={(event) => setCreateNumberOfClassroomsAvailable(event.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="create-school-facilities">Facilities Available</Label>
+                      <Input
+                        id="create-school-facilities"
+                        value={createFacilitiesAvailable}
+                        onChange={(event) => setCreateFacilitiesAvailable(event.target.value)}
+                        placeholder="e.g labs, computers, library"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2">
+                        <Label htmlFor="create-head-teacher-name">Head Teacher Name</Label>
+                        <Input
+                          id="create-head-teacher-name"
+                          value={createHeadTeacherName}
+                          onChange={(event) => setCreateHeadTeacherName(event.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="create-head-teacher-phone">Head Teacher Phone</Label>
+                        <Input
+                          id="create-head-teacher-phone"
+                          value={createHeadTeacherPhoneNumber}
+                          onChange={(event) => setCreateHeadTeacherPhoneNumber(event.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2">
+                        <Label htmlFor="create-assistant-head-teacher-name">Asst. Head Teacher Name</Label>
+                        <Input
+                          id="create-assistant-head-teacher-name"
+                          value={createAssistantHeadTeacherName}
+                          onChange={(event) => setCreateAssistantHeadTeacherName(event.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="create-assistant-head-teacher-phone">Asst. Head Teacher Phone</Label>
+                        <Input
+                          id="create-assistant-head-teacher-phone"
+                          value={createAssistantHeadTeacherPhoneNumber}
+                          onChange={(event) => setCreateAssistantHeadTeacherPhoneNumber(event.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="space-y-2">
+                        <Label htmlFor="create-academic-staff">No. of Academic Staff</Label>
+                        <Input
+                          id="create-academic-staff"
+                          type="number"
+                          min="0"
+                          value={createNumberOfAcademicStaff}
+                          onChange={(event) => setCreateNumberOfAcademicStaff(event.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="create-non-academic-staff">No. of Non-Academic Staff</Label>
+                        <Input
+                          id="create-non-academic-staff"
+                          type="number"
+                          min="0"
+                          value={createNumberOfNonAcademicStaff}
+                          onChange={(event) => setCreateNumberOfNonAcademicStaff(event.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="create-total-students">Total Enrolled Students</Label>
+                        <Input
+                          id="create-total-students"
+                          type="number"
+                          min="0"
+                          value={createTotalEnrolledStudents}
+                          onChange={(event) => setCreateTotalEnrolledStudents(event.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="create-school-gallery">Gallery</Label>
+                      <Input
+                        id="create-school-gallery"
+                        value={createGallery}
+                        onChange={(event) => setCreateGallery(event.target.value)}
+                        placeholder="Image URL or reference"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2">
+                        <Label htmlFor="create-school-status">Status</Label>
+                        <select
+                          id="create-school-status"
+                          className="h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm"
+                          value={createStatus}
+                          onChange={(event) => setCreateStatus(event.target.value as "active" | "inactive")}
+                        >
+                          <option value="active">active</option>
+                          <option value="inactive">inactive</option>
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="create-school-longitude">Longitude</Label>
+                        <Input
+                          id="create-school-longitude"
+                          type="number"
+                          step="any"
+                          value={createLongitude}
+                          onChange={(event) => setCreateLongitude(event.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="create-school-latitude">Latitude</Label>
+                      <Input
+                        id="create-school-latitude"
+                        type="number"
+                        step="any"
+                        value={createLatitude}
+                        onChange={(event) => setCreateLatitude(event.target.value)}
+                      />
+                    </div>
+
+                    <div className="flex justify-between gap-2">
+                      <Button type="button" variant="outline" onClick={() => setCreateStep(1)}>
+                        Back
+                      </Button>
+                      <Button type="submit" disabled={isCreating}>
+                        {isCreating ? "Creating..." : "Create School"}
+                      </Button>
+                    </div>
+                  </>
+                )}
 
                 {createError ? <p className="text-sm text-destructive">{createError}</p> : null}
-                <Button type="submit" disabled={isCreating}>
-                  {isCreating ? "Creating..." : "Create School"}
-                </Button>
               </form>
             </ModalContent>
           </Modal>
+
+          <Button type="button" variant="outline" onClick={downloadImportTemplate}>
+            Download Template
+          </Button>
 
           <Modal open={isImportOpen} onOpenChange={setIsImportOpen}>
             <ModalTrigger render={<Button variant="outline" />}>Import CSV/Excel</ModalTrigger>

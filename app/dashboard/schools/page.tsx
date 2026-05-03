@@ -1,9 +1,19 @@
 "use client"
 
-import { FormEvent, useEffect, useState } from "react"
+import { FormEvent, useEffect, useRef, useState } from "react"
 import Link from "next/link"
+import * as XLSX from "xlsx"
+import { MoreHorizontal } from "lucide-react"
 
-import type { Class, School, SchoolBoard, SchoolType } from "@/interfaces/resource-interface"
+import type {
+  AuthUser,
+  BulkCreateSchoolInput,
+  BulkImportSchoolsResult,
+  Class,
+  School,
+  SchoolBoard,
+  SchoolType,
+} from "@/interfaces/resource-interface"
 import { authService } from "@/services/auth-service"
 import { resourceService } from "@/services/resource-service"
 import { Button } from "@/components/ui/button"
@@ -19,9 +29,109 @@ import {
   ModalTrigger,
 } from "@/components/ui/modal"
 
+function parseImportNumber(value: unknown) {
+  if (value === null || value === undefined || value === "") {
+    return undefined
+  }
+
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : undefined
+}
+
+function parseImportText(value: unknown) {
+  if (value === null || value === undefined) {
+    return undefined
+  }
+
+  const trimmed = String(value).trim()
+  return trimmed || undefined
+}
+
+function normalizeHeaderKey(value: string) {
+  return value.toLowerCase().replace(/[^a-z]/g, "")
+}
+
+function getRowValue(row: Record<string, unknown>, keys: string[]) {
+  const rowEntries = Object.entries(row)
+
+  for (const key of keys) {
+    const expected = normalizeHeaderKey(key)
+    const match = rowEntries.find(([entryKey]) => normalizeHeaderKey(entryKey) === expected)
+    if (match) {
+      return match[1]
+    }
+  }
+
+  return undefined
+}
+
+function toBulkSchoolPayload(row: Record<string, unknown>, schoolBoardId: string): BulkCreateSchoolInput | null {
+  const nameValue = getRowValue(row, ["name", "school name"])
+  const name = typeof nameValue === "string" ? nameValue.trim() : ""
+
+  if (!name) {
+    return null
+  }
+
+  const statusValue = String(getRowValue(row, ["status"]) ?? "").trim().toLowerCase()
+  const status = statusValue === "inactive" ? "inactive" : statusValue === "active" ? "active" : undefined
+
+  return {
+    name,
+    schoolBoard: schoolBoardId,
+    address: parseImportText(getRowValue(row, ["address", "school address"])),
+    schoolCode: parseImportText(getRowValue(row, ["school code", "code"])),
+    state: parseImportText(getRowValue(row, ["state"])),
+    localGovernment: parseImportText(getRowValue(row, ["localGovernment", "local government", "lga"])),
+    district: parseImportText(getRowValue(row, ["district"])),
+    ward: parseImportText(getRowValue(row, ["ward"])),
+    schoolLocation: parseImportText(getRowValue(row, ["school location", "location"])),
+    categoryOfSchool: parseImportText(getRowValue(row, ["category of school", "school category"])),
+    accessRoadCondition: parseImportText(getRowValue(row, ["access road condition", "road condition"])),
+    typeOfSchool: parseImportText(getRowValue(row, ["type of school", "school type"])),
+    shiftSystem: parseImportText(getRowValue(row, ["shift system", "shieft system"])),
+    facilitiesAvailable: parseImportText(
+      getRowValue(row, [
+        "facilities available",
+        "facilities available (e.g labs, computers, library, staff room, etc)",
+      ])
+    ),
+    headTeacherName: parseImportText(getRowValue(row, ["name of head teacher", "head teacher name"])),
+    headTeacherPhoneNumber: parseImportText(
+      getRowValue(row, ["phone number of head teacher", "head teacher phone number"])
+    ),
+    assistantHeadTeacherName: parseImportText(
+      getRowValue(row, ["name of asst head teacher", "name of asst. head teacher", "assistant head teacher name"])
+    ),
+    assistantHeadTeacherPhoneNumber: parseImportText(
+      getRowValue(row, [
+        "phone number of asst head teacher",
+        "phone number of asst. head teacher",
+        "assistant head teacher phone number",
+      ])
+    ),
+    longitude: parseImportNumber(getRowValue(row, ["longitude", "long", "longitue"])),
+    latitude: parseImportNumber(getRowValue(row, ["latitude", "lat", "latiude"])),
+    numberOfClasses: parseImportNumber(getRowValue(row, ["number of classes"])),
+    numberOfClassroomsAvailable: parseImportNumber(getRowValue(row, ["number of classrooms available"])),
+    numberOfAcademicStaff: parseImportNumber(getRowValue(row, ["number of academic staff", "number of accademic staff"])),
+    numberOfNonAcademicStaff: parseImportNumber(
+      getRowValue(row, ["number of non academic staff", "number of non accademic staff"])
+    ),
+    totalEnrolledStudents: parseImportNumber(
+      getRowValue(row, ["what is the total number of students currently enrolled in the school", "total enrolled students"])
+    ),
+    gallery: parseImportText(getRowValue(row, ["gallery", "gallary"])),
+    status,
+  }
+}
+
 export default function SchoolsPage() {
-  const authUser = authService.getStoredUser()
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null)
+  const [hasHydrated, setHasHydrated] = useState(false)
   const canSetSchoolBoard = authUser?.accountType === "internal"
+  const canImportSchools = authUser?.role === "school-board-admin"
+  const actorSchoolBoardId = authUser?.schoolBoardId ?? ""
 
   const [schools, setSchools] = useState<School[]>([])
   const [schoolBoards, setSchoolBoards] = useState<SchoolBoard[]>([])
@@ -63,6 +173,13 @@ export default function SchoolsPage() {
   const [isDeactivatingId, setIsDeactivatingId] = useState<string | null>(null)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [createStep, setCreateStep] = useState<1 | 2>(1)
+  const [isImportOpen, setIsImportOpen] = useState(false)
+  const [importError, setImportError] = useState<string | null>(null)
+  const [isImporting, setIsImporting] = useState(false)
+  const [importResult, setImportResult] = useState<BulkImportSchoolsResult | null>(null)
+  const [openActionMenuFor, setOpenActionMenuFor] = useState<string | null>(null)
+  const [actionMenuPosition, setActionMenuPosition] = useState({ top: 0, left: 0, openUp: true })
+  const importFileRef = useRef<HTMLInputElement | null>(null)
 
   const activeCount = schools.filter((item) => item.status !== "inactive").length
   const inactiveCount = schools.filter((item) => item.status === "inactive").length
@@ -95,11 +212,45 @@ export default function SchoolsPage() {
   }
 
   useEffect(() => {
+    setAuthUser(authService.getStoredUser())
+    setHasHydrated(true)
+  }, [])
+
+  useEffect(() => {
     void loadSchools()
   }, [])
 
   function getSchoolId(school: School) {
     return school._id ?? school.id ?? ""
+  }
+
+  function getActionKey(school: School) {
+    return getSchoolId(school) || school.name
+  }
+
+  function toggleActionMenu(school: School, event: React.MouseEvent<HTMLButtonElement>) {
+    const actionKey = getActionKey(school)
+
+    if (openActionMenuFor === actionKey) {
+      setOpenActionMenuFor(null)
+      return
+    }
+
+    const rect = event.currentTarget.getBoundingClientRect()
+    const menuWidth = 144
+    const menuHeight = 172
+    const viewportPadding = 8
+    const spaceBelow = window.innerHeight - rect.bottom
+    const openUp = spaceBelow < menuHeight && rect.top > menuHeight
+
+    const left = Math.min(
+      Math.max(viewportPadding, rect.right - menuWidth),
+      window.innerWidth - menuWidth - viewportPadding
+    )
+    const top = openUp ? rect.top - 4 : rect.bottom + 4
+
+    setActionMenuPosition({ top, left, openUp })
+    setOpenActionMenuFor(actionKey)
   }
 
   function getBoardNameById(boardId: string | null | undefined) {
@@ -124,6 +275,7 @@ export default function SchoolsPage() {
   }
 
   async function handleDeleteSchool(school: School) {
+    setOpenActionMenuFor(null)
     const schoolId = getSchoolId(school)
     if (!schoolId) {
       return
@@ -145,6 +297,7 @@ export default function SchoolsPage() {
   }
 
   async function handleDeactivateSchool(school: School) {
+    setOpenActionMenuFor(null)
     const schoolId = getSchoolId(school)
     if (!schoolId) {
       return
@@ -276,13 +429,129 @@ export default function SchoolsPage() {
     }
   }
 
+  function downloadImportTemplate() {
+    const headers = [
+      "School Name",
+      "School Address",
+      "School Code",
+      "Latiude",
+      "Longitue",
+      "LGA",
+      "District",
+      "Ward",
+      "School Location",
+      "Category of school",
+      "Access Road Condition",
+      "Type of school",
+      "Shieft System",
+      "Number of Classes",
+      "Number of Classrooms Available",
+      "Facilities Available (e.g labs, computers, Library, staff room,  etc)",
+      "Name of Head teacher",
+      "Phone number of Head teacher",
+      "Name of Asst. Head teacher",
+      "Phone number of Asst. Head teacher",
+      "Number of Accademic Staff",
+      "Number of Non Accademic Staff",
+      "What is the total number of students currently enrolled in the school?",
+      "GALLARY",
+    ]
+
+    const sampleRow = [
+      "Springfield Primary School",
+      "12 Unity Road, Central Ward",
+      "SPS-001",
+      "9.0765",
+      "7.3986",
+      "Municipal LGA",
+      "Central District",
+      "Ward 3",
+      "Urban",
+      "Public",
+      "Tarred",
+      "Primary",
+      "Single",
+      "24",
+      "20",
+      "Library, Computer Lab, Staff Room",
+      "Amina Yusuf",
+      "08030000001",
+      "Bello Musa",
+      "08030000002",
+      "32",
+      "12",
+      "840",
+      "https://example.com/school-gallery",
+    ]
+
+    const workbook = XLSX.utils.book_new()
+    const sheet = XLSX.utils.aoa_to_sheet([headers, sampleRow])
+    XLSX.utils.book_append_sheet(workbook, sheet, "Schools Information")
+    XLSX.writeFile(workbook, "school-import-template.xlsx")
+  }
+
+  async function handleImportSchools(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setImportError(null)
+    setImportResult(null)
+
+    if (!actorSchoolBoardId) {
+      setImportError("School board context is missing for your account.")
+      return
+    }
+
+    const file = importFileRef.current?.files?.[0]
+    if (!file) {
+      setImportError("Choose a CSV or Excel file first.")
+      return
+    }
+
+    setIsImporting(true)
+
+    try {
+      const data = await file.arrayBuffer()
+      const workbook = XLSX.read(data, { type: "array" })
+      const firstSheetName = workbook.SheetNames[0]
+
+      if (!firstSheetName) {
+        throw new Error("No worksheet found in file.")
+      }
+
+      const sheet = workbook.Sheets[firstSheetName]
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" })
+
+      const schoolsPayload = rows
+        .map((row) => toBulkSchoolPayload(row, actorSchoolBoardId))
+        .filter((item): item is BulkCreateSchoolInput => item !== null)
+
+      if (schoolsPayload.length === 0) {
+        setImportError("No valid rows found. Ensure a 'name' or 'School Name' column exists and has values.")
+        return
+      }
+
+      const result = await resourceService.bulkCreateSchools({ schools: schoolsPayload })
+      setImportResult(result)
+
+      if (importFileRef.current) {
+        importFileRef.current.value = ""
+      }
+
+      await loadSchools()
+    } catch (bulkError) {
+      setImportError(bulkError instanceof Error ? bulkError.message : "Unable to import schools.")
+    } finally {
+      setIsImporting(false)
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">Schools</h2>
-        <Modal open={isCreateOpen} onOpenChange={handleCreateOpenChange}>
-          <ModalTrigger render={<Button />}>Create School</ModalTrigger>
-          <ModalContent>
+        <div className="flex items-center gap-2">
+          <Modal open={isCreateOpen} onOpenChange={handleCreateOpenChange}>
+            <ModalTrigger render={<Button />}>Create School</ModalTrigger>
+            <ModalContent>
             <ModalHeader>
               <ModalTitle>Create School</ModalTitle>
               <ModalDescription>Add a school record.</ModalDescription>
@@ -641,8 +910,54 @@ export default function SchoolsPage() {
 
               {submitError ? <p className="text-sm text-destructive">{submitError}</p> : null}
             </form>
-          </ModalContent>
-        </Modal>
+            </ModalContent>
+          </Modal>
+
+          {hasHydrated && canImportSchools ? (
+            <>
+              <Button type="button" variant="outline" onClick={downloadImportTemplate}>
+                Download Template
+              </Button>
+
+              <Modal open={isImportOpen} onOpenChange={setIsImportOpen}>
+                <ModalTrigger render={<Button variant="outline" />}>Import CSV/Excel</ModalTrigger>
+                <ModalContent>
+                  <ModalHeader>
+                    <ModalTitle>Import Schools</ModalTitle>
+                    <ModalDescription>Upload a CSV or Excel file to create multiple schools.</ModalDescription>
+                  </ModalHeader>
+                  <form className="space-y-3" onSubmit={handleImportSchools}>
+                    <div className="space-y-2">
+                      <Label htmlFor="import-schools-file">File</Label>
+                      <Input id="import-schools-file" ref={importFileRef} type="file" accept=".csv,.xlsx,.xls" required />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Expected columns include: School Name, School Address, School Code, Latiude, Longitue, LGA,
+                      District, Ward, School Location, Category of school, Access Road Condition, Type of school,
+                      Shieft System, Number of Classes, Number of Classrooms Available, Facilities Available,
+                      Name/Phone of Head teacher, Name/Phone of Asst. Head teacher, Number of Accademic/Non Accademic
+                      Staff, total enrolled students, GALLARY.
+                    </p>
+
+                    {importError ? <p className="text-sm text-destructive">{importError}</p> : null}
+
+                    {importResult ? (
+                      <div className="rounded-md border p-3 text-sm">
+                        <p>Total: {importResult.total}</p>
+                        <p>Created: {importResult.createdCount}</p>
+                        <p>Failed: {importResult.failedCount}</p>
+                      </div>
+                    ) : null}
+
+                    <Button type="submit" disabled={isImporting}>
+                      {isImporting ? "Importing..." : "Import Schools"}
+                    </Button>
+                  </form>
+                </ModalContent>
+              </Modal>
+            </>
+          ) : null}
+        </div>
       </div>
 
       <div className="border-b">
@@ -690,7 +1005,8 @@ export default function SchoolsPage() {
             <p className="text-sm text-muted-foreground">No schools found.</p>
           ) : null}
           {!loading && schools.length > 0 ? (
-            <div className="overflow-x-auto rounded-md border">
+            <div className="rounded-md border">
+              <div className="overflow-x-auto">
               <table className="min-w-full text-left text-sm">
                 <thead className="bg-muted/40 text-muted-foreground">
                   <tr>
@@ -722,45 +1038,61 @@ export default function SchoolsPage() {
                       <td className="px-3 py-2">{item.longitude ?? "-"}</td>
                       <td className="px-3 py-2">{item.latitude ?? "-"}</td>
                       <td className="px-3 py-2">{item.status || "active"}</td>
-                      <td className="px-3 py-2">
-                        <div className="flex items-center gap-2">
-                          {getSchoolId(item) ? (
-                            <>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                nativeButton={false}
-                                render={<Link href={`/dashboard/schools/${getSchoolId(item)}`} />}
-                              >
-                                View
-                              </Button>
-                            </>
-                          ) : null}
+                      <td className="relative z-10 px-3 py-2">
+                        <div className="relative inline-block">
                           <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => void handleDeleteSchool(item)}
-                            disabled={isDeletingId === getSchoolId(item)}
-                          >
-                            {isDeletingId === getSchoolId(item) ? "Deleting..." : "Delete"}
-                          </Button>
-                          <Button
-                            size="sm"
+                            type="button"
                             variant="outline"
-                            onClick={() => void handleDeactivateSchool(item)}
-                            disabled={isDeactivatingId === getSchoolId(item) || (item.status ?? "active") === "inactive"}
+                            size="icon-sm"
+                            aria-label="Open actions"
+                            onClick={(event) => toggleActionMenu(item, event)}
                           >
-                            {isDeactivatingId === getSchoolId(item) ? "Deactivating..." : "Deactivate"}
+                            <MoreHorizontal className="size-4" />
                           </Button>
-                          {getSchoolId(item) ? (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              nativeButton={false}
-                              render={<Link href={`/dashboard/schools/${getSchoolId(item)}?mode=edit`} />}
+                          {openActionMenuFor === getActionKey(item) ? (
+                            <div
+                              className="fixed z-50 w-36 rounded-md border bg-popover p-1 shadow-md"
+                              style={{
+                                top: actionMenuPosition.top,
+                                left: actionMenuPosition.left,
+                                transform: actionMenuPosition.openUp ? "translateY(-100%)" : undefined,
+                              }}
                             >
-                              Edit
-                            </Button>
+                              {getSchoolId(item) ? (
+                                <Link
+                                  href={`/dashboard/schools/${getSchoolId(item)}`}
+                                  className="block w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
+                                  onClick={() => setOpenActionMenuFor(null)}
+                                >
+                                  View
+                                </Link>
+                              ) : null}
+                              {getSchoolId(item) ? (
+                                <Link
+                                  href={`/dashboard/schools/${getSchoolId(item)}?mode=edit`}
+                                  className="block w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
+                                  onClick={() => setOpenActionMenuFor(null)}
+                                >
+                                  Edit
+                                </Link>
+                              ) : null}
+                              <button
+                                type="button"
+                                className="block w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent disabled:opacity-50"
+                                onClick={() => void handleDeactivateSchool(item)}
+                                disabled={isDeactivatingId === getSchoolId(item) || (item.status ?? "active") === "inactive"}
+                              >
+                                {isDeactivatingId === getSchoolId(item) ? "Deactivating..." : "Deactivate"}
+                              </button>
+                              <button
+                                type="button"
+                                className="block w-full rounded-sm px-2 py-1.5 text-left text-sm text-destructive hover:bg-accent disabled:opacity-50"
+                                onClick={() => void handleDeleteSchool(item)}
+                                disabled={isDeletingId === getSchoolId(item)}
+                              >
+                                {isDeletingId === getSchoolId(item) ? "Deleting..." : "Delete"}
+                              </button>
+                            </div>
                           ) : null}
                         </div>
                       </td>
@@ -768,6 +1100,7 @@ export default function SchoolsPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           ) : null}
         </CardContent>

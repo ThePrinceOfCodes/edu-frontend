@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 
 import type { AttendanceSummary, School } from "@/interfaces/resource-interface"
+import { authService } from "@/services/auth-service"
 import { resourceService } from "@/services/resource-service"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
@@ -20,6 +21,25 @@ export default function AttendancePage() {
   const [summary, setSummary] = useState<AttendanceSummary | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+
+  async function resolveActiveTermId(schoolId: string) {
+    try {
+      const activeTerm = await resourceService.getActiveTerm({ school: schoolId })
+      return activeTerm._id ?? activeTerm.id ?? ""
+    } catch {
+      const authUser = authService.getStoredUser()
+      const fallbackTerms = await resourceService.getTerms({
+        schoolBoard: authUser?.schoolBoardId ?? undefined,
+        school: authUser?.schoolId ?? undefined,
+        isActive: true,
+        limit: 1,
+        page: 1,
+      })
+
+      const term = fallbackTerms.results[0]
+      return term?._id ?? term?.id ?? ""
+    }
+  }
 
   useEffect(() => {
     async function loadSchools() {
@@ -48,7 +68,15 @@ export default function AttendancePage() {
       setLoading(true)
 
       try {
-        const result = await resourceService.getAttendanceSummary({ school: selectedSchool })
+        const termId = await resolveActiveTermId(selectedSchool)
+
+        if (!termId) {
+          setSummary(null)
+          setLoadError("No active term found for this school or school board")
+          return
+        }
+
+        const result = await resourceService.getAttendanceSummary({ school: selectedSchool, termId })
         setSummary(result)
       } catch (error) {
         setSummary(null)

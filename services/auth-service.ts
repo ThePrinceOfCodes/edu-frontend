@@ -44,6 +44,7 @@ export const authService = {
     const result = await request<LoginResult>("/api/auth/login", {
       method: "POST",
       body: input,
+      redirectOnUnauthorized: false,
     })
 
     if (result.ok) {

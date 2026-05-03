@@ -5,6 +5,7 @@ type ApiError = {
 type RequestOptions = {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE"
   body?: unknown
+  redirectOnUnauthorized?: boolean
 }
 
 function redirectToSignIn() {
@@ -34,7 +35,7 @@ export async function request<T>(url: string, options: RequestOptions = {}) {
   const payload = (await response.json().catch(() => ({}))) as T & ApiError
 
   if (!response.ok) {
-    if (response.status === 401) {
+    if (response.status === 401 && options.redirectOnUnauthorized !== false) {
       redirectToSignIn()
       throw new Error("Unauthorized")
     }

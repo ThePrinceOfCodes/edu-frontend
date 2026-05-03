@@ -1,6 +1,6 @@
 "use client"
 
-import { FormEvent, useEffect, useRef, useState } from "react"
+import { FormEvent, MouseEvent, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import * as XLSX from "xlsx"
 import { MoreHorizontal } from "lucide-react"
@@ -179,6 +179,7 @@ export default function SchoolsPage() {
   const [importResult, setImportResult] = useState<BulkImportSchoolsResult | null>(null)
   const [openActionMenuFor, setOpenActionMenuFor] = useState<string | null>(null)
   const [actionMenuPosition, setActionMenuPosition] = useState({ top: 0, left: 0, openUp: true })
+  const actionMenuRef = useRef<HTMLDivElement | null>(null)
   const importFileRef = useRef<HTMLInputElement | null>(null)
 
   const activeCount = schools.filter((item) => item.status !== "inactive").length
@@ -220,6 +221,44 @@ export default function SchoolsPage() {
     void loadSchools()
   }, [])
 
+  useEffect(() => {
+    if (!openActionMenuFor) {
+      return
+    }
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target
+      if (!(target instanceof Node)) {
+        return
+      }
+
+      if (actionMenuRef.current?.contains(target)) {
+        return
+      }
+
+      const trigger = document.querySelector(`[data-action-menu-key="${openActionMenuFor}"]`)
+      if (trigger instanceof HTMLElement && trigger.contains(target)) {
+        return
+      }
+
+      setOpenActionMenuFor(null)
+    }
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpenActionMenuFor(null)
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown)
+    document.addEventListener("keydown", handleEscape)
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown)
+      document.removeEventListener("keydown", handleEscape)
+    }
+  }, [openActionMenuFor])
+
   function getSchoolId(school: School) {
     return school._id ?? school.id ?? ""
   }
@@ -228,7 +267,7 @@ export default function SchoolsPage() {
     return getSchoolId(school) || school.name
   }
 
-  function toggleActionMenu(school: School, event: React.MouseEvent<HTMLButtonElement>) {
+  function toggleActionMenu(school: School, event: MouseEvent<HTMLButtonElement>) {
     const actionKey = getActionKey(school)
 
     if (openActionMenuFor === actionKey) {
@@ -1045,12 +1084,14 @@ export default function SchoolsPage() {
                             variant="outline"
                             size="icon-sm"
                             aria-label="Open actions"
+                            data-action-menu-key={getActionKey(item)}
                             onClick={(event) => toggleActionMenu(item, event)}
                           >
                             <MoreHorizontal className="size-4" />
                           </Button>
                           {openActionMenuFor === getActionKey(item) ? (
                             <div
+                              ref={actionMenuRef}
                               className="fixed z-50 w-36 rounded-md border bg-popover p-1 shadow-md"
                               style={{
                                 top: actionMenuPosition.top,

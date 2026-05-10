@@ -194,13 +194,28 @@ export default function DashboardPage() {
             const schoolId = school._id ?? school.id
             if (!schoolId) return null
 
-            const summary = await resourceService.getAttendanceSummary({ school: schoolId, termId: selectedTermId })
-            const rows = summary.rows || []
-            const avg = rows.length
-              ? Number((rows.reduce((sum, row) => sum + row.attendancePercentage, 0) / rows.length).toFixed(2))
-              : 0
+            try {
+              const summary = await resourceService.getAttendanceSummary({ school: schoolId, termId: selectedTermId })
+              const rows = summary.rows || []
+              const avg = rows.length
+                ? Number((rows.reduce((sum, row) => sum + row.attendancePercentage, 0) / rows.length).toFixed(2))
+                : 0
 
-            return { schoolId, schoolName: school.name, percentage: avg, studentCount: rows.length }
+              return { schoolId, schoolName: school.name, percentage: avg, studentCount: rows.length }
+            } catch {
+              // Fallback to school-resolved active term when the selected term scope does not apply to this school.
+              try {
+                const summary = await resourceService.getAttendanceSummary({ school: schoolId })
+                const rows = summary.rows || []
+                const avg = rows.length
+                  ? Number((rows.reduce((sum, row) => sum + row.attendancePercentage, 0) / rows.length).toFixed(2))
+                  : 0
+
+                return { schoolId, schoolName: school.name, percentage: avg, studentCount: rows.length }
+              } catch {
+                return null
+              }
+            }
           })
         )
 

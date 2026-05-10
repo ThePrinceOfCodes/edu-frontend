@@ -192,17 +192,25 @@ export default function SchoolsPage() {
     setLoading(true)
 
     try {
-      const [schoolResult, schoolBoardResult, schoolTypeResult, classResult] = await Promise.all([
+      const [schoolResult, schoolBoardResult, schoolTypeResult] = await Promise.all([
         resourceService.getSchools(),
         resourceService.getSchoolBoards(),
         resourceService.getSchoolTypes({ limit: 1000, page: 1 }),
-        resourceService.getClasses({ limit: 1000, page: 1 }),
       ])
 
       setSchools(schoolResult.results || [])
       setSchoolBoards(schoolBoardResult.results || [])
       setSchoolTypes(schoolTypeResult.results || [])
-      setClasses(classResult.results || [])
+
+      // Class lookup is optional for rendering the schools table.
+      // Keep the page usable even if class-scoped permissions reject this call.
+      try {
+        const classResult = await resourceService.getClasses({ limit: 1000, page: 1 })
+        setClasses(classResult.results || [])
+      } catch (classLoadError) {
+        setClasses([])
+        console.warn("Unable to load classes for schools page:", classLoadError)
+      }
     } catch (loadError) {
       const errorMsg = loadError instanceof Error ? loadError.message : "Unable to load schools."
       setLoadError(errorMsg)

@@ -26,10 +26,19 @@ function clampPercentage(value: number) {
   return Math.max(0, Math.min(100, value))
 }
 
+function resolveGender(
+  row: { studentId: string; gender?: "male" | "female" },
+  fallbackMap?: Record<string, "male" | "female">
+) {
+  return row.gender ?? fallbackMap?.[row.studentId]
+}
+
 export default function AttendancePage() {
   const [schools, setSchools] = useState<School[]>([])
   const [schoolClasses, setSchoolClasses] = useState<Class[]>([])
   const [allSchoolSummaries, setAllSchoolSummaries] = useState<AttendanceSummary[]>([])
+  const [allSchoolGenderMaps, setAllSchoolGenderMaps] = useState<Record<string, Record<string, "male" | "female">>>({})
+  const [selectedSchoolGenderMap, setSelectedSchoolGenderMap] = useState<Record<string, "male" | "female">>({})
   const [selectedSchool, setSelectedSchool] = useState("")
   const [selectedClassId, setSelectedClassId] = useState("")
   const [summary, setSummary] = useState<AttendanceSummary | null>(null)
@@ -72,11 +81,13 @@ export default function AttendancePage() {
   useEffect(() => {
     if (selectedSchool) {
       setAllSchoolSummaries([])
+      setAllSchoolGenderMaps({})
       return
     }
 
     if (schools.length === 0) {
       setAllSchoolSummaries([])
+      setAllSchoolGenderMaps({})
       setLoading(false)
       return
     }
@@ -113,10 +124,44 @@ export default function AttendancePage() {
           return
         }
 
-        setAllSchoolSummaries(summaries.filter((item): item is AttendanceSummary => item !== null))
+        const filteredSummaries = summaries.filter((item): item is AttendanceSummary => item !== null)
+        setAllSchoolSummaries(filteredSummaries)
+
+        const schoolGenderEntries = await Promise.all(
+          filteredSummaries.map(async (schoolSummary) => {
+            try {
+              const studentResult = await resourceService.getStudents({
+                school: schoolSummary.school.id,
+                limit: 1000,
+                page: 1,
+              })
+
+              const genderMap = studentResult.results.reduce<Record<string, "male" | "female">>((acc, student) => {
+                const studentId = student._id ?? student.id
+                if (!studentId || (student.gender !== "male" && student.gender !== "female")) {
+                  return acc
+                }
+
+                acc[studentId] = student.gender
+                return acc
+              }, {})
+
+              return [schoolSummary.school.id, genderMap] as const
+            } catch {
+              return [schoolSummary.school.id, {}] as const
+            }
+          })
+        )
+
+        if (cancelled) {
+          return
+        }
+
+        setAllSchoolGenderMaps(Object.fromEntries(schoolGenderEntries))
       } catch (error) {
         if (!cancelled) {
           setAllSchoolSummaries([])
+          setAllSchoolGenderMaps({})
           setLoadError(error instanceof Error ? error.message : "Unable to load attendance summary")
         }
       } finally {
@@ -137,6 +182,7 @@ export default function AttendancePage() {
     if (!selectedSchool) {
       setSchoolClasses([])
       setSelectedClassId("")
+      setSelectedSchoolGenderMap({})
       return
     }
 
@@ -146,9 +192,10 @@ export default function AttendancePage() {
       setClassesLoading(true)
 
       try {
-        const [schoolDetail, classResult] = await Promise.all([
+        const [schoolDetail, classResult, studentResult] = await Promise.all([
           resourceService.getSchoolById(selectedSchool),
           resourceService.getClasses({ limit: 500, page: 1 }),
+          resourceService.getStudents({ school: selectedSchool, limit: 1000, page: 1 }),
         ])
 
         if (cancelled) {
@@ -161,6 +208,16 @@ export default function AttendancePage() {
           .sort((left, right) => left.code.localeCompare(right.code))
 
         setSchoolClasses(nextClasses)
+        const genderMap = studentResult.results.reduce<Record<string, "male" | "female">>((acc, student) => {
+          const studentId = student._id ?? student.id
+          if (!studentId || (student.gender !== "male" && student.gender !== "female")) {
+            return acc
+          }
+
+          acc[studentId] = student.gender
+          return acc
+        }, {})
+        setSelectedSchoolGenderMap(genderMap)
         setSelectedClassId((current) =>
           nextClasses.some((classItem) => (classItem._id ?? classItem.id) === current) ? current : ""
         )
@@ -168,6 +225,7 @@ export default function AttendancePage() {
         if (!cancelled) {
           setSchoolClasses([])
           setSelectedClassId("")
+          setSelectedSchoolGenderMap({})
           setLoadError(error instanceof Error ? error.message : "Unable to load classes")
         }
       } finally {
@@ -236,17 +294,30 @@ export default function AttendancePage() {
 
     const dayMap = new Map<string, { date: string; label: string; present: number; absent: number }>()
     const schoolPerformance: Array<{ schoolId: string; schoolName: string; rate: number; present: number; absent: number }> = []
+    const schoolSummaries: Array<{
+      schoolId: string
+      schoolName: string
+      totalStudents: number
+      attendancePercentage: number
+      maleAttendancePercentage: number
+      femaleAttendancePercentage: number
+    }> = []
     let totalStudents = 0
     let totalMaleStudents = 0
     let totalFemaleStudents = 0
 
     allSchoolSummaries.forEach((schoolSummary) => {
+      const fallbackGenderMap = allSchoolGenderMaps[schoolSummary.school.id]
       totalStudents += schoolSummary.rows.length
-      totalMaleStudents += schoolSummary.rows.filter((row) => row.gender === "male").length
-      totalFemaleStudents += schoolSummary.rows.filter((row) => row.gender === "female").length
+      totalMaleStudents += schoolSummary.rows.filter((row) => resolveGender(row, fallbackGenderMap) === "male").length
+      totalFemaleStudents += schoolSummary.rows.filter((row) => resolveGender(row, fallbackGenderMap) === "female").length
       const schoolVisibleDays = schoolSummary.days.filter((day) => isWeekday(day.date))
       let schoolPresent = 0
       let schoolAbsent = 0
+      let schoolMalePresent = 0
+      let schoolMaleAbsent = 0
+      let schoolFemalePresent = 0
+      let schoolFemaleAbsent = 0
 
       schoolVisibleDays.forEach((day) => {
         if (!dayMap.has(day.date)) {
@@ -265,12 +336,23 @@ export default function AttendancePage() {
 
         schoolSummary.rows.forEach((row) => {
           const status = row.statusByDate[day.date]
+          const gender = resolveGender(row, fallbackGenderMap)
           if (status === "present") {
             bucket.present += 1
             schoolPresent += 1
+            if (gender === "male") {
+              schoolMalePresent += 1
+            } else if (gender === "female") {
+              schoolFemalePresent += 1
+            }
           } else if (status === "absent") {
             bucket.absent += 1
             schoolAbsent += 1
+            if (gender === "male") {
+              schoolMaleAbsent += 1
+            } else if (gender === "female") {
+              schoolFemaleAbsent += 1
+            }
           }
         })
       })
@@ -282,6 +364,17 @@ export default function AttendancePage() {
         rate: schoolTotal > 0 ? Number(((schoolPresent / schoolTotal) * 100).toFixed(2)) : 0,
         present: schoolPresent,
         absent: schoolAbsent,
+      })
+
+      const maleTotal = schoolMalePresent + schoolMaleAbsent
+      const femaleTotal = schoolFemalePresent + schoolFemaleAbsent
+      schoolSummaries.push({
+        schoolId: schoolSummary.school.id,
+        schoolName: schoolSummary.school.name,
+        totalStudents: schoolSummary.rows.length,
+        attendancePercentage: schoolTotal > 0 ? Number(((schoolPresent / schoolTotal) * 100).toFixed(2)) : 0,
+        maleAttendancePercentage: maleTotal > 0 ? Number(((schoolMalePresent / maleTotal) * 100).toFixed(2)) : 0,
+        femaleAttendancePercentage: femaleTotal > 0 ? Number(((schoolFemalePresent / femaleTotal) * 100).toFixed(2)) : 0,
       })
     })
 
@@ -321,18 +414,19 @@ export default function AttendancePage() {
       malePercentage: genderTotal > 0 ? Number(((totalMaleStudents / genderTotal) * 100).toFixed(2)) : 0,
       femalePercentage: genderTotal > 0 ? Number(((totalFemaleStudents / genderTotal) * 100).toFixed(2)) : 0,
       schoolsWithData: allSchoolSummaries.length,
+      schoolSummaries,
       bestSchools: sortedSchoolPerformance.slice(0, 5),
       worstSchools: [...sortedSchoolPerformance].reverse().slice(0, 5),
     }
-  }, [allSchoolSummaries])
+  }, [allSchoolSummaries, allSchoolGenderMaps])
   const dashboardMetrics = useMemo(() => {
     if (!summary) {
       return null
     }
 
     const classStats = new Map<string, { classId: string; className: string; present: number; absent: number }>()
-    const totalMaleStudents = summary.rows.filter((row) => row.gender === "male").length
-    const totalFemaleStudents = summary.rows.filter((row) => row.gender === "female").length
+    const totalMaleStudents = summary.rows.filter((row) => resolveGender(row, selectedSchoolGenderMap) === "male").length
+    const totalFemaleStudents = summary.rows.filter((row) => resolveGender(row, selectedSchoolGenderMap) === "female").length
 
     const dailyBreakdown = visibleDays.map((day) => {
       let present = 0
@@ -417,7 +511,7 @@ export default function AttendancePage() {
       bestClasses: classPerformance.slice(0, 5),
       worstClasses: [...classPerformance].reverse().slice(0, 5),
     }
-  }, [summary, visibleDays])
+  }, [summary, visibleDays, selectedSchoolGenderMap])
   const activeDashboardMetrics = selectedSchool ? dashboardMetrics : allSchoolsDashboardMetrics
   const studentsCardValue = selectedSchool
     ? activeCount
@@ -427,6 +521,9 @@ export default function AttendancePage() {
     : []
   const worstSchools = !selectedSchool && activeDashboardMetrics && "worstSchools" in activeDashboardMetrics
     ? activeDashboardMetrics.worstSchools
+    : []
+  const schoolSummaries = !selectedSchool && activeDashboardMetrics && "schoolSummaries" in activeDashboardMetrics
+    ? activeDashboardMetrics.schoolSummaries
     : []
   const bestClasses = selectedSchool && activeDashboardMetrics && "bestClasses" in activeDashboardMetrics
     ? activeDashboardMetrics.bestClasses
@@ -628,23 +725,52 @@ export default function AttendancePage() {
               <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
                 <Card className="shadow-none">
                   <CardHeader>
-                    <CardTitle className="text-base">Recent Attendance Trend</CardTitle>
+                    <CardTitle className="text-base">
+                      {selectedSchool ? "Recent Attendance Trend" : "School Attendance Summaries"}
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-10 items-end gap-2">
-                      {activeDashboardMetrics.recentTrend.map((day) => (
-                        <div key={day.date} className="space-y-2 text-center">
-                          <div className="flex h-40 items-end justify-center rounded-md bg-muted/30 px-1 py-2">
-                            <div
-                              className="w-full rounded-t bg-emerald-500"
-                              style={{ height: `${clampPercentage(day.rate)}%` }}
-                              title={`${day.rate}% attendance`}
-                            />
+                    {!selectedSchool ? (
+                      <div className="overflow-x-auto rounded-md border">
+                        <table className="min-w-full text-sm">
+                          <thead className="bg-muted/40 text-muted-foreground">
+                            <tr>
+                              <th className="px-3 py-2 text-left font-medium">School</th>
+                              <th className="px-3 py-2 text-right font-medium">Total Students</th>
+                              <th className="px-3 py-2 text-right font-medium">Attendance %</th>
+                              <th className="px-3 py-2 text-right font-medium">Boys %</th>
+                              <th className="px-3 py-2 text-right font-medium">Girls %</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {schoolSummaries.map((item) => (
+                              <tr key={item.schoolId} className="border-t">
+                                <td className="px-3 py-2 font-medium">{item.schoolName}</td>
+                                <td className="px-3 py-2 text-right">{item.totalStudents}</td>
+                                <td className="px-3 py-2 text-right">{item.attendancePercentage}%</td>
+                                <td className="px-3 py-2 text-right">{item.maleAttendancePercentage}%</td>
+                                <td className="px-3 py-2 text-right">{item.femaleAttendancePercentage}%</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-10 items-end gap-2">
+                        {activeDashboardMetrics.recentTrend.map((day) => (
+                          <div key={day.date} className="space-y-2 text-center">
+                            <div className="flex h-40 items-end justify-center rounded-md bg-muted/30 px-1 py-2">
+                              <div
+                                className="w-full rounded-t bg-emerald-500"
+                                style={{ height: `${clampPercentage(day.rate)}%` }}
+                                title={`${day.rate}% attendance`}
+                              />
+                            </div>
+                            <div className="text-xs text-muted-foreground">{day.label}</div>
                           </div>
-                          <div className="text-xs text-muted-foreground">{day.label}</div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
 

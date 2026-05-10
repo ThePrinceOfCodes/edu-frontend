@@ -146,7 +146,7 @@ export const resourceService = {
     })
   },
 
-  getClasses(params?: { limit?: number; page?: number; schoolTypeId?: string }) {
+  getClasses(params?: { limit?: number; page?: number; schoolTypeId?: string; schoolId?: string }) {
     return request<PaginatedResponse<Class>>(`/api/classes${toQueryString(params)}`)
   },
   createClass(input: CreateClassInput) {

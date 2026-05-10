@@ -194,7 +194,7 @@ export default function AttendancePage() {
       try {
         const [schoolDetail, classResult, studentResult] = await Promise.all([
           resourceService.getSchoolById(selectedSchool),
-          resourceService.getClasses({ limit: 500, page: 1 }),
+          resourceService.getClasses({ limit: 500, page: 1, schoolId: selectedSchool }),
           resourceService.getStudents({ school: selectedSchool, limit: 1000, page: 1 }),
         ])
 

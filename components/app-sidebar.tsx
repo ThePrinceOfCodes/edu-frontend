@@ -13,6 +13,7 @@ import {
   Layers,
   LogOut,
   MessageSquare,
+  NotebookPen,
   User,
   Settings,
   Users,
@@ -63,6 +64,12 @@ const navItems = [
     title: "Attendance",
     url: "/dashboard/attendance",
     icon: CalendarDays,
+    hideForInternal: true,
+  },
+  {
+    title: "Results",
+    url: "/dashboard/results",
+    icon: NotebookPen,
     hideForInternal: true,
   },
   {

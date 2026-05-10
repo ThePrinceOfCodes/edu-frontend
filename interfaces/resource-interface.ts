@@ -222,8 +222,20 @@ export interface SchoolType {
   name: string
 }
 
+export interface Subject {
+  id?: string
+  _id?: string
+  name: string
+  code: string
+}
+
 export interface CreateSchoolTypeInput {
   name: string
+}
+
+export interface CreateSubjectInput {
+  name: string
+  code: string
 }
 
 export interface Class {
@@ -281,6 +293,51 @@ export interface UpdateTermInput {
   isActive?: boolean
 }
 
+export interface ResultRecord {
+  id?: string
+  _id?: string
+  student: string
+  schoolBoard: string
+  school: string
+  classId: string
+  termId: string
+  academicSessionId: string
+  subject: string
+  testScore: number
+  examScore: number
+  totalScore: number
+  remark?: string | null
+  assessmentDate?: string
+  recordedBy?: string
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface CreateResultInput {
+  student: string
+  school: string
+  classId: string
+  termId: string
+  academicSessionId: string
+  subject: string
+  testScore: number
+  examScore: number
+  remark?: string
+  assessmentDate?: string
+}
+
+export interface UpdateResultInput {
+  subject?: string
+  testScore?: number
+  examScore?: number
+  remark?: string
+  assessmentDate?: string
+}
+
+export interface BulkCreateResultsInput {
+  results: CreateResultInput[]
+}
+
 export type InternalUserRole = "super-admin" | "admin"
 
 export const INTERNAL_USER_PERMISSIONS = [
@@ -301,6 +358,8 @@ export const INTERNAL_USER_PERMISSIONS = [
   "students.read",
   "students.write",
   "attendance.read",
+  "results.read",
+  "results.write",
   "terms.read",
   "terms.write",
   "academicSessions.read",

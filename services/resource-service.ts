@@ -178,6 +178,7 @@ export const resourceService = {
   getStudents(params?: {
     limit?: number
     page?: number
+    q?: string
     school?: string
     classId?: string
     gender?: "male" | "female"

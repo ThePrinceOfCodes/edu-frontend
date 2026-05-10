@@ -46,6 +46,8 @@ export default function StudentsPage() {
   const [filterSchool, setFilterSchool] = useState("")
   const [filterAcademicSessionId, setFilterAcademicSessionId] = useState("")
   const [filterClassId, setFilterClassId] = useState("")
+  const [searchQuery, setSearchQuery] = useState("")
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("")
 
   const [loadError, setLoadError] = useState<string | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -155,6 +157,7 @@ export default function StudentsPage() {
       const result = await resourceService.getStudents({
         page: nextPage,
         limit,
+        q: debouncedSearchQuery || undefined,
         gender: filterGender ? (filterGender as "male" | "female") : undefined,
         school: filterSchool || undefined,
         academicSessionId: filterAcademicSessionId || undefined,
@@ -177,8 +180,20 @@ export default function StudentsPage() {
   }, [])
 
   useEffect(() => {
+    const timeout = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery.trim())
+    }, 350)
+
+    return () => clearTimeout(timeout)
+  }, [searchQuery])
+
+  useEffect(() => {
+    setPage(1)
+  }, [debouncedSearchQuery])
+
+  useEffect(() => {
     void loadStudents(page)
-  }, [page, limit, filterGender, filterSchool, filterAcademicSessionId, filterClassId])
+  }, [page, limit, debouncedSearchQuery, filterGender, filterSchool, filterAcademicSessionId, filterClassId])
 
   async function handleCreateStudent(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -329,6 +344,15 @@ export default function StudentsPage() {
     setFilterAcademicSessionId("")
     setFilterClassId("")
     setPage(1)
+  }
+
+  function clearSearch() {
+    setSearchQuery("")
+  }
+
+  function clearAllControls() {
+    clearFilters()
+    clearSearch()
   }
 
   const activeCount = students.filter((item) => item.status !== "inactive").length
@@ -506,89 +530,118 @@ export default function StudentsPage() {
           <CardTitle>Students Table</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <div className="space-y-2">
-              <Label htmlFor="filter-gender">Gender</Label>
-              <select
-                id="filter-gender"
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-                value={filterGender}
-                onChange={(event) => {
-                  setFilterGender(event.target.value)
-                  setPage(1)
-                }}
-              >
-                <option value="">All genders</option>
-                <option value="male">Male</option>
-                <option value="female">Female</option>
-              </select>
+          <div className="rounded-lg border bg-muted/20 p-3">
+            <div className="grid gap-3 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,2fr)]">
+              <div className="space-y-2">
+                <Label htmlFor="students-search">Search Students</Label>
+                <Input
+                  id="students-search"
+                  placeholder="Search name, reg number, school, or class"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Search runs on the server across student records.
+                </p>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="space-y-2">
+                  <Label htmlFor="filter-gender">Gender</Label>
+                  <select
+                    id="filter-gender"
+                    className="h-8 w-full rounded-md border bg-background px-2.5 py-1 text-sm"
+                    value={filterGender}
+                    onChange={(event) => {
+                      setFilterGender(event.target.value)
+                      setPage(1)
+                    }}
+                  >
+                    <option value="">All genders</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="filter-school">School</Label>
+                  <select
+                    id="filter-school"
+                    className="h-8 w-full rounded-md border bg-background px-2.5 py-1 text-sm"
+                    value={filterSchool}
+                    onChange={(event) => {
+                      setFilterSchool(event.target.value)
+                      setFilterClassId("")
+                      setPage(1)
+                    }}
+                  >
+                    <option value="">All schools</option>
+                    {schools.map((item) => {
+                      const itemId = item._id ?? item.id ?? ""
+                      return (
+                        <option key={itemId} value={itemId}>
+                          {item.name}
+                        </option>
+                      )
+                    })}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="filter-session">Session</Label>
+                  <select
+                    id="filter-session"
+                    className="h-8 w-full rounded-md border bg-background px-2.5 py-1 text-sm"
+                    value={filterAcademicSessionId}
+                    onChange={(event) => {
+                      setFilterAcademicSessionId(event.target.value)
+                      setPage(1)
+                    }}
+                  >
+                    <option value="">All sessions</option>
+                    {academicSessions.map((item) => {
+                      const itemId = item._id ?? item.id ?? ""
+                      return (
+                        <option key={itemId} value={itemId}>
+                          {formatAcademicSession(item)}
+                        </option>
+                      )
+                    })}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="filter-class">Class</Label>
+                  <select
+                    id="filter-class"
+                    className="h-8 w-full rounded-md border bg-background px-2.5 py-1 text-sm"
+                    value={filterClassId}
+                    onChange={(event) => {
+                      setFilterClassId(event.target.value)
+                      setPage(1)
+                    }}
+                  >
+                    <option value="">All classes</option>
+                    {filteredClasses.map((item) => {
+                      const itemId = item._id ?? item.id ?? item.code
+                      return (
+                        <option key={itemId} value={itemId}>
+                          {item.code} - {item.name}
+                        </option>
+                      )
+                    })}
+                  </select>
+                </div>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="filter-school">School</Label>
-              <select
-                id="filter-school"
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-                value={filterSchool}
-                onChange={(event) => {
-                  setFilterSchool(event.target.value)
-                  setFilterClassId("")
-                  setPage(1)
-                }}
-              >
-                <option value="">All schools</option>
-                {schools.map((item) => {
-                  const itemId = item._id ?? item.id ?? ""
-                  return (
-                    <option key={itemId} value={itemId}>
-                      {item.name}
-                    </option>
-                  )
-                })}
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="filter-session">Academic Session</Label>
-              <select
-                id="filter-session"
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-                value={filterAcademicSessionId}
-                onChange={(event) => {
-                  setFilterAcademicSessionId(event.target.value)
-                  setPage(1)
-                }}
-              >
-                <option value="">All academic sessions</option>
-                {academicSessions.map((item) => {
-                  const itemId = item._id ?? item.id ?? ""
-                  return (
-                    <option key={itemId} value={itemId}>
-                      {formatAcademicSession(item)}
-                    </option>
-                  )
-                })}
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="filter-class">Class</Label>
-              <select
-                id="filter-class"
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-                value={filterClassId}
-                onChange={(event) => {
-                  setFilterClassId(event.target.value)
-                  setPage(1)
-                }}
-              >
-                <option value="">All classes</option>
-                {filteredClasses.map((item) => {
-                  const itemId = item._id ?? item.id ?? item.code
-                  return (
-                    <option key={itemId} value={itemId}>
-                      {item.code} - {item.name}
-                    </option>
-                  )
-                })}
-              </select>
+
+            <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
+              <Button type="button" variant="outline" onClick={clearSearch} disabled={!searchQuery.trim()}>
+                Clear Search
+              </Button>
+              <Button type="button" variant="outline" onClick={clearFilters}>
+                Clear Filters
+              </Button>
+              <Button type="button" variant="outline" onClick={clearAllControls}>
+                Reset All
+              </Button>
             </div>
           </div>
 
@@ -609,7 +662,6 @@ export default function StudentsPage() {
                 <option value="50">50 per page</option>
                 <option value="100">100 per page</option>
               </select>
-              <Button type="button" variant="outline" onClick={clearFilters}>Clear Filters</Button>
             </div>
           </div>
 

@@ -338,6 +338,93 @@ export interface BulkCreateResultsInput {
   results: CreateResultInput[]
 }
 
+export interface CreateGuardianInput {
+  name: string
+  email: string
+  password: string
+  phoneNumber?: string
+  studentIds: string[]
+}
+
+export interface GuardianLinkedStudent {
+  id: string
+  fullName: string
+  regNumber: string
+  schoolId?: string | null
+  schoolName?: string | null
+}
+
+export interface GuardianAdminRecord {
+  id: string
+  name: string
+  email: string
+  phoneNumber?: string | null
+  status?: "active" | "disabled"
+  linkedStudentsCount: number
+  linkedStudents: GuardianLinkedStudent[]
+}
+
+export interface GuardiansListResponse {
+  results: GuardianAdminRecord[]
+}
+
+export interface GuardianStudentResult {
+  id: string
+  subject: string
+  testScore: number
+  examScore: number
+  totalScore: number
+  termId: string
+  termName: string
+  academicSessionId: string
+  academicSessionName: string
+  assessmentDate?: string
+  remark?: string | null
+  classId: string
+  className: string
+  schoolId: string
+  schoolName: string
+}
+
+export interface GuardianStudentOverview {
+  id: string
+  fullName: string
+  firstName: string
+  middleName?: string | null
+  lastName: string
+  regNumber: string
+  gender: "male" | "female"
+  dateOfBirth: string
+  stateOfOrigin: string
+  localGovernment: string
+  status: "active" | "inactive"
+  currentPlacement?: {
+    schoolId: string
+    schoolName: string
+    classId: string
+    className: string
+    academicSession?: string | null
+    academicSessionId?: string | null
+  } | null
+  attendance: {
+    totalMarked: number
+    presentCount: number
+    absentCount: number
+    attendanceRate: number
+    lastMarkedDate?: string | null
+  }
+  results: GuardianStudentResult[]
+}
+
+export interface GuardianStudentsOverviewResponse {
+  guardian: {
+    id: string
+    name: string
+    email: string
+  }
+  students: GuardianStudentOverview[]
+}
+
 export type InternalUserRole = "super-admin" | "admin"
 
 export const INTERNAL_USER_PERMISSIONS = [
@@ -432,6 +519,7 @@ export interface Student {
   school?: string
   classId?: string
   status?: "active" | "inactive"
+  guardianIds?: string[]
   promotionHistory?: StudentHistory[]
   currentEnrollment?: StudentEnrollment | null
 }
@@ -445,6 +533,7 @@ export interface CreateStudentInput {
   localGovernment: string
   gender: "male" | "female"
   dateOfBirth: string
+  guardianIds?: string[]
   school: string
   classId: string
   status?: "active" | "inactive"

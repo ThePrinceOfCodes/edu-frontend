@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { useEffect, useMemo, useRef, useState } from "react"
 
 import type {
@@ -50,7 +51,9 @@ function formatShortDate(iso: string) {
 }
 
 export default function DashboardPage() {
+  const router = useRouter()
   const authUser = authService.getStoredUser()
+  const isGuardian = authUser?.role === "guardian"
   const schoolBoardId = authUser?.schoolBoardId || undefined
   const today = new Date()
 
@@ -130,6 +133,11 @@ export default function DashboardPage() {
 
   // Load initial data
   useEffect(() => {
+    if (isGuardian) {
+      router.replace("/dashboard/guardian")
+      return
+    }
+
     async function loadDashboard() {
       setLoading(true)
       setLoadError(null)
@@ -176,7 +184,7 @@ export default function DashboardPage() {
 
     void loadDashboard()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [schoolBoardId])
+  }, [isGuardian, router, schoolBoardId])
 
   // Load attendance per term
   useEffect(() => {

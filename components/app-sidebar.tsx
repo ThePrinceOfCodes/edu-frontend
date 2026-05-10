@@ -41,72 +41,97 @@ const navItems = [
     url: "/dashboard",
     icon: LayoutDashboard,
     internalOnly: false,
+    hideForGuardian: true,
   },
   {
     title: "Staff",
     url: "/dashboard/staff",
     icon: Users,
     hideForInternal: true,
+    hideForGuardian: true,
   },
   {
     title: "Users",
     url: "/dashboard/users",
     icon: User,
     showForInternal: true,
+    hideForGuardian: true,
   },
   {
     title: "Students",
     url: "/dashboard/students",
     icon: Users,
     hideForInternal: true,
+    hideForGuardian: true,
+  },
+  {
+    title: "Guardians",
+    url: "/dashboard/guardians",
+    icon: Users,
+    allowedRoles: ["super-admin", "admin", "school-board-admin", "school-admin"],
+    hideForGuardian: true,
   },
   {
     title: "Attendance",
     url: "/dashboard/attendance",
     icon: CalendarDays,
     hideForInternal: true,
+    hideForGuardian: true,
   },
   {
     title: "Results",
     url: "/dashboard/results",
     icon: NotebookPen,
     hideForInternal: true,
+    hideForGuardian: true,
+  },
+  {
+    title: "My Children",
+    url: "/dashboard/guardian",
+    icon: Users,
+    showForGuardian: true,
   },
   {
     title: "Schools",
     url: "/dashboard/schools",
     icon: BookOpen,
     internalOnly: false,
+    hideForGuardian: true,
   },
   {
     title: "School Boards",
     url: "/dashboard/school-boards",
     icon: Settings,
     showForInternal: true,
+    hideForGuardian: true,
   },
   {
     title: "Terms",
     url: "/dashboard/terms",
     icon: CalendarDays,
     allowedRoles: ["school-board-admin", "school-admin"],
+    hideForGuardian: true,
   },
   {
     title: "Classes",
     url: "/dashboard/classes",
     icon: Layers,
     hideForInternal: true,
+    hideForGuardian: true,
   },
   {
     title: "Messaging",
     url: "/dashboard/messaging",
     icon: MessageSquare,
     internalOnly: false,
+    hideForGuardian: true,
   },
   {
     title: "Events",
     url: "/dashboard/events",
     icon: CalendarRange,
     internalOnly: false,
+    hideForGuardian: true,
   },
 ]
 
@@ -141,9 +166,12 @@ export function AppSidebar() {
   }, [])
 
   const isInternalUser = authUser?.accountType === "internal"
+  const isGuardian = authUser?.role === "guardian"
   const visibleNavItems = navItems.filter((item) => {
     if (item.hideForInternal && isInternalUser) return false
     if (item.showForInternal && !isInternalUser) return false
+    if (item.hideForGuardian && isGuardian) return false
+    if (item.showForGuardian && !isGuardian) return false
     if (item.allowedRoles && !item.allowedRoles.includes(authUser?.role as string)) return false
     return true
   })

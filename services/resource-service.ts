@@ -8,6 +8,7 @@ import type {
   Class,
   CreateClassInput,
   CreateEventInput,
+  CreateGuardianInput,
   CreateInternalUserInput,
   CreateSchoolBoardInput,
   CreateSchoolInput,
@@ -17,7 +18,9 @@ import type {
   CreateStaffInput,
   CreateStudentInput,
   CreateTermInput,
+  GuardiansListResponse,
   CreateMessageThreadInput,
+  GuardianStudentsOverviewResponse,
   InternalUser,
   Message,
   MessageThread,
@@ -206,6 +209,40 @@ export const resourceService = {
       method: "POST",
       body: input,
     })
+  },
+  createGuardian(input: CreateGuardianInput) {
+    return request<{
+      guardian: InternalUser
+      linkedStudentsCount: number
+      linkedStudentIds: string[]
+    }>("/api/guardians", {
+      method: "POST",
+      body: input,
+    })
+  },
+  getGuardians(params?: { q?: string }) {
+    return request<GuardiansListResponse>(`/api/guardians${toQueryString(params)}`)
+  },
+  linkStudentsToGuardian(guardianId: string, studentIds: string[]) {
+    return request<{ guardianId: string; linkedStudentIds: string[]; linkedStudentsCount: number }>(
+      `/api/guardians/${guardianId}/link-students`,
+      {
+        method: "POST",
+        body: { studentIds },
+      }
+    )
+  },
+  unlinkStudentsFromGuardian(guardianId: string, studentIds: string[]) {
+    return request<{ guardianId: string; unlinkedStudentIds: string[]; unlinkedStudentsCount: number }>(
+      `/api/guardians/${guardianId}/unlink-students`,
+      {
+        method: "POST",
+        body: { studentIds },
+      }
+    )
+  },
+  getGuardianStudentsOverview() {
+    return request<GuardianStudentsOverviewResponse>("/api/guardians/me/students-overview")
   },
   getAttendanceSummary(params?: { school?: string; termId?: string; classId?: string }) {
     return request<AttendanceSummary>(`/api/attendance/summary${toQueryString(params)}`)

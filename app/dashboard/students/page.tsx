@@ -46,14 +46,6 @@ export default function StudentsPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isImportOpen, setIsImportOpen] = useState(false)
 
-  const schoolById = useMemo(() => {
-    return new Map(schools.map((item) => [item._id ?? item.id ?? "", item]))
-  }, [schools])
-
-  const classById = useMemo(() => {
-    return new Map(classes.map((item) => [item._id ?? item.id ?? "", item]))
-  }, [classes])
-
   const availableClassesForSelectedSchool = useMemo(() => {
     const selectedSchool = schools.find((item) => (item._id ?? item.id) === school)
     if (!selectedSchool || !selectedSchool.classes || selectedSchool.classes.length === 0) {
@@ -229,6 +221,7 @@ export default function StudentsPage() {
   }
 
   const activeCount = students.filter((item) => item.status !== "inactive").length
+  const withCurrentEnrollmentCount = students.filter((item) => Boolean(item.currentEnrollment?.school)).length
 
   return (
     <div className="space-y-4">
@@ -240,7 +233,7 @@ export default function StudentsPage() {
             <ModalContent>
               <ModalHeader>
                 <ModalTitle>Create Student</ModalTitle>
-                <ModalDescription>Create a single student record.</ModalDescription>
+                <ModalDescription>Create student biodata and assign an initial enrollment.</ModalDescription>
               </ModalHeader>
               <form className="space-y-3" onSubmit={handleCreateStudent}>
                 <div className="space-y-2">
@@ -320,7 +313,7 @@ export default function StudentsPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="student-school">School ID</Label>
+                  <Label htmlFor="student-school">Initial School ID</Label>
                   <Input
                     id="student-school"
                     value={school}
@@ -332,7 +325,7 @@ export default function StudentsPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="student-class">Class ID</Label>
+                  <Label htmlFor="student-class">Initial Class ID</Label>
                   <Input
                     id="student-class"
                     value={classId}
@@ -362,7 +355,7 @@ export default function StudentsPage() {
               <ModalHeader>
                 <ModalTitle>Import Students from Excel</ModalTitle>
                 <ModalDescription>
-                  Upload .xlsx/.xls with columns: firstName,middleName,lastName,regNumber,stateOfOrigin,localGovernment,gender,dateOfBirth,school|schoolName,classId|classCode
+                  Upload .xlsx/.xls with student biodata plus initial enrollment columns: firstName,middleName,lastName,regNumber,stateOfOrigin,localGovernment,gender,dateOfBirth,school|schoolName,classId|classCode
                 </ModalDescription>
               </ModalHeader>
               <div className="space-y-3">
@@ -410,10 +403,10 @@ export default function StudentsPage() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Schools Covered</CardTitle>
+            <CardTitle className="text-sm">With Current Enrollment</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-semibold">{new Set(students.map((item) => item.school)).size}</p>
+            <p className="text-2xl font-semibold">{withCurrentEnrollmentCount}</p>
           </CardContent>
         </Card>
       </div>
@@ -441,10 +434,7 @@ export default function StudentsPage() {
                     <th className="px-3 py-2 font-medium">LGA</th>
                     <th className="px-3 py-2 font-medium">Gender</th>
                     <th className="px-3 py-2 font-medium">DOB</th>
-                    <th className="px-3 py-2 font-medium">School</th>
-                    <th className="px-3 py-2 font-medium">Class</th>
                     <th className="px-3 py-2 font-medium">Status</th>
-                    <th className="px-3 py-2 font-medium">History Entries</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -458,10 +448,7 @@ export default function StudentsPage() {
                       <td className="px-3 py-2">{item.localGovernment}</td>
                       <td className="px-3 py-2">{item.gender}</td>
                       <td className="px-3 py-2">{new Date(item.dateOfBirth).toLocaleDateString()}</td>
-                      <td className="px-3 py-2">{schoolById.get(item.school)?.name ?? item.school}</td>
-                      <td className="px-3 py-2">{classById.get(item.classId)?.name ?? item.classId}</td>
                       <td className="px-3 py-2">{item.status || "active"}</td>
-                      <td className="px-3 py-2">{item.promotionHistory?.length ?? 0}</td>
                     </tr>
                   ))}
                 </tbody>

@@ -349,6 +349,15 @@ export interface StudentHistory {
   changedAt: string
 }
 
+export interface StudentEnrollment {
+  schoolBoard?: string | null
+  school: string
+  classId: string
+  academicSession?: string | null
+  academicSessionId?: string | null
+  isCurrent?: boolean
+}
+
 export interface Student {
   id?: string
   _id?: string
@@ -361,10 +370,11 @@ export interface Student {
   gender: "male" | "female"
   dateOfBirth: string
   schoolBoard?: string | null
-  school: string
-  classId: string
+  school?: string
+  classId?: string
   status?: "active" | "inactive"
   promotionHistory?: StudentHistory[]
+  currentEnrollment?: StudentEnrollment | null
 }
 
 export interface CreateStudentInput {

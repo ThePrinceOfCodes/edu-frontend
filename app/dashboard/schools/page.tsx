@@ -5,8 +5,8 @@ import Link from "next/link"
 import * as XLSX from "xlsx"
 import { MoreHorizontal } from "lucide-react"
 
+import type { AuthUser } from "@/interfaces/auth-interface"
 import type {
-  AuthUser,
   BulkCreateSchoolInput,
   BulkImportSchoolsResult,
   Class,

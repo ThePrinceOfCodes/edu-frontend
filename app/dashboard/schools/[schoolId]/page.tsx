@@ -38,6 +38,7 @@ export default function SchoolViewPage() {
   const [schoolTypes, setSchoolTypes] = useState<SchoolType[]>([])
   const [staffList, setStaffList] = useState<Staff[]>([])
   const [studentList, setStudentList] = useState<Student[]>([])
+  const [studentLoadError, setStudentLoadError] = useState<string | null>(null)
   const [staffPage, setStaffPage] = useState(1)
   const [studentPage, setStudentPage] = useState(1)
 
@@ -192,6 +193,7 @@ export default function SchoolViewPage() {
       setSchoolTypes(schoolTypesResult.results)
       setStaffList(staffResult.results)
       setStaffPage(1)
+      setStudentLoadError(null)
 
       try {
         const studentsResult = await resourceService.getStudents({ school: schoolId, limit: 200, page: 1 })
@@ -200,7 +202,11 @@ export default function SchoolViewPage() {
       } catch (studentLoadError) {
         setStudentList([])
         setStudentPage(1)
-        console.warn("Unable to load students for school page:", studentLoadError)
+        setStudentLoadError(
+          studentLoadError instanceof Error
+            ? studentLoadError.message
+            : "Unable to load students for this school."
+        )
       }
 
       syncEditFields(schoolResult)
@@ -843,8 +849,11 @@ export default function SchoolViewPage() {
               <CardTitle>Students Table</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
+              {studentLoadError ? <p className="text-sm text-destructive">{studentLoadError}</p> : null}
               {studentList.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No students found.</p>
+                <p className="text-sm text-muted-foreground">
+                  {studentLoadError ? "Unable to display students." : "No students found."}
+                </p>
               ) : (
                 <>
                   <p className="text-sm text-muted-foreground">

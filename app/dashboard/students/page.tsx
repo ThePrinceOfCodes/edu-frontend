@@ -3,7 +3,8 @@
 import { FormEvent, useEffect, useMemo, useState } from "react"
 import * as XLSX from "xlsx"
 
-import type { Class, School, Student } from "@/interfaces/resource-interface"
+import type { AcademicSession, Class, School, Student } from "@/interfaces/resource-interface"
+import { authService } from "@/services/auth-service"
 import { resourceService } from "@/services/resource-service"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -24,6 +25,11 @@ export default function StudentsPage() {
   const [students, setStudents] = useState<Student[]>([])
   const [schools, setSchools] = useState<School[]>([])
   const [classes, setClasses] = useState<Class[]>([])
+  const [academicSessions, setAcademicSessions] = useState<AcademicSession[]>([])
+  const [totalResults, setTotalResults] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
+  const [page, setPage] = useState(1)
+  const [limit, setLimit] = useState(20)
 
   const [firstName, setFirstName] = useState("")
   const [middleName, setMiddleName] = useState("")
@@ -36,6 +42,11 @@ export default function StudentsPage() {
   const [school, setSchool] = useState("")
   const [classId, setClassId] = useState("")
 
+  const [filterGender, setFilterGender] = useState("")
+  const [filterSchool, setFilterSchool] = useState("")
+  const [filterAcademicSessionId, setFilterAcademicSessionId] = useState("")
+  const [filterClassId, setFilterClassId] = useState("")
+
   const [loadError, setLoadError] = useState<string | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [importError, setImportError] = useState<string | null>(null)
@@ -46,29 +57,114 @@ export default function StudentsPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isImportOpen, setIsImportOpen] = useState(false)
 
+  const authUser = useMemo(() => authService.getStoredUser(), [])
+  const isSchoolBoardAdmin = authUser?.role === "school-board-admin"
+  const schoolBoardId = authUser?.schoolBoardId ?? undefined
+
   const availableClassesForSelectedSchool = useMemo(() => {
     const selectedSchool = schools.find((item) => (item._id ?? item.id) === school)
-    if (!selectedSchool || !selectedSchool.classes || selectedSchool.classes.length === 0) {
+    if (!selectedSchool?.classes?.length) {
       return classes
     }
 
     return classes.filter((item) => selectedSchool.classes?.includes(item._id ?? item.id ?? ""))
   }, [classes, school, schools])
 
-  async function loadData() {
+  const filteredClasses = useMemo(() => {
+    if (!filterSchool) {
+      return classes
+    }
+
+    const selectedSchool = schools.find((item) => (item._id ?? item.id) === filterSchool)
+    if (!selectedSchool?.classes?.length) {
+      return classes
+    }
+
+    return classes.filter((item) => selectedSchool.classes?.includes(item._id ?? item.id ?? ""))
+  }, [classes, filterSchool, schools])
+
+  const schoolNameMap = useMemo(
+    () =>
+      new Map(
+        schools.map((item) => [item._id ?? item.id ?? item.name, item.name])
+      ),
+    [schools]
+  )
+
+  const classLabelMap = useMemo(
+    () =>
+      new Map(
+        classes.map((item) => [item._id ?? item.id ?? item.code, `${item.code} - ${item.name}`])
+      ),
+    [classes]
+  )
+
+  async function loadMetadata() {
+    setLoadError(null)
+
+    try {
+      const [schoolsResult, sessionsResult] = await Promise.all([
+        resourceService.getSchools(
+          isSchoolBoardAdmin ? { schoolBoard: schoolBoardId, limit: 500, page: 1 } : { limit: 500, page: 1 }
+        ),
+        resourceService.getAcademicSessions(
+          isSchoolBoardAdmin ? { schoolBoard: schoolBoardId, limit: 200, page: 1 } : { limit: 200, page: 1 }
+        ),
+      ])
+
+      setSchools(schoolsResult.results)
+      setAcademicSessions(sessionsResult.results)
+
+      const schoolIds = schoolsResult.results.map((item) => item._id ?? item.id ?? "").filter(Boolean)
+
+      if (schoolIds.length === 0) {
+        setClasses([])
+        return
+      }
+
+      if (isSchoolBoardAdmin) {
+        const classResults = await Promise.all(
+          schoolIds.map((schoolIdValue) =>
+            resourceService.getClasses({ schoolId: schoolIdValue, limit: 500, page: 1 })
+          )
+        )
+
+        const uniqueClasses = new Map<string, Class>()
+        classResults.forEach((result) => {
+          result.results.forEach((classItem) => {
+            uniqueClasses.set(classItem._id ?? classItem.id ?? classItem.code, classItem)
+          })
+        })
+
+        setClasses(Array.from(uniqueClasses.values()))
+        return
+      }
+
+      const classesResult = await resourceService.getClasses({ limit: 500, page: 1 })
+      setClasses(classesResult.results)
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : "Unable to load students.")
+    }
+  }
+
+  async function loadStudents(nextPage = page) {
     setLoadError(null)
     setLoading(true)
 
     try {
-      const [studentsResult, schoolsResult, classesResult] = await Promise.all([
-        resourceService.getStudents({ limit: 100, page: 1 }),
-        resourceService.getSchools(),
-        resourceService.getClasses({ limit: 100, page: 1 }),
-      ])
+      const result = await resourceService.getStudents({
+        page: nextPage,
+        limit,
+        gender: filterGender ? (filterGender as "male" | "female") : undefined,
+        school: filterSchool || undefined,
+        academicSessionId: filterAcademicSessionId || undefined,
+        classId: filterClassId || undefined,
+      })
 
-      setStudents(studentsResult.results)
-      setSchools(schoolsResult.results)
-      setClasses(classesResult.results)
+      setStudents(result.results)
+      setTotalResults(result.totalResults)
+      setTotalPages(result.totalPages)
+      setPage(result.page)
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : "Unable to load students.")
     } finally {
@@ -77,8 +173,12 @@ export default function StudentsPage() {
   }
 
   useEffect(() => {
-    void loadData()
+    void loadMetadata()
   }, [])
+
+  useEffect(() => {
+    void loadStudents(page)
+  }, [page, limit, filterGender, filterSchool, filterAcademicSessionId, filterClassId])
 
   async function handleCreateStudent(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -110,7 +210,8 @@ export default function StudentsPage() {
       setSchool("")
       setClassId("")
       setIsCreateOpen(false)
-      await loadData()
+      await loadStudents(1)
+      setPage(1)
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : "Unable to create student")
     } finally {
@@ -159,21 +260,21 @@ export default function StudentsPage() {
         const localGovernmentValue = extractCell(row, ["localGovernment", "LocalGovernment", "Local Government"])
         const genderValue = extractCell(row, ["gender", "Gender"]).toLowerCase()
         const dateOfBirthValue = extractCell(row, ["dateOfBirth", "DateOfBirth", "Date Of Birth", "dob", "DOB"])
-        const schoolId = extractCell(row, ["school", "schoolId", "School ID"])
-        const schoolName = extractCell(row, ["schoolName", "School Name"])
+        const schoolIdValue = extractCell(row, ["school", "schoolId", "School ID"])
+        const schoolNameValue = extractCell(row, ["schoolName", "School Name"])
         const classIdValue = extractCell(row, ["classId", "class", "Class ID"])
-        const classCode = extractCell(row, ["classCode", "Class Code", "code"])
+        const classCodeValue = extractCell(row, ["classCode", "Class Code", "code"])
 
         const resolvedSchoolId =
-          schoolId ||
-          schools.find((item) => item.name.toLowerCase() === schoolName.toLowerCase())?._id ||
-          schools.find((item) => item.name.toLowerCase() === schoolName.toLowerCase())?.id ||
+          schoolIdValue ||
+          schools.find((item) => item.name.toLowerCase() === schoolNameValue.toLowerCase())?._id ||
+          schools.find((item) => item.name.toLowerCase() === schoolNameValue.toLowerCase())?.id ||
           ""
 
         const resolvedClassId =
           classIdValue ||
-          classes.find((item) => item.code.toLowerCase() === classCode.toLowerCase())?._id ||
-          classes.find((item) => item.code.toLowerCase() === classCode.toLowerCase())?.id ||
+          classes.find((item) => item.code.toLowerCase() === classCodeValue.toLowerCase())?._id ||
+          classes.find((item) => item.code.toLowerCase() === classCodeValue.toLowerCase())?.id ||
           ""
 
         if (
@@ -208,16 +309,26 @@ export default function StudentsPage() {
 
       const result = await resourceService.bulkCreateStudents({ students: payloadStudents })
 
-      setImportSummary(
-        `Imported ${result.createdCount}/${result.total}. Failed: ${result.failedCount}`
-      )
-
-      await loadData()
+      setImportSummary(`Imported ${result.createdCount}/${result.total}. Failed: ${result.failedCount}`)
+      await loadStudents(1)
+      setPage(1)
     } catch (error) {
       setImportError(error instanceof Error ? error.message : "Unable to import Excel")
     } finally {
       setIsImporting(false)
     }
+  }
+
+  function formatAcademicSession(session: AcademicSession) {
+    return session.name || `${session.startYear}/${session.endYear}`
+  }
+
+  function clearFilters() {
+    setFilterGender("")
+    setFilterSchool("")
+    setFilterAcademicSessionId("")
+    setFilterClassId("")
+    setPage(1)
   }
 
   const activeCount = students.filter((item) => item.status !== "inactive").length
@@ -238,56 +349,27 @@ export default function StudentsPage() {
               <form className="space-y-3" onSubmit={handleCreateStudent}>
                 <div className="space-y-2">
                   <Label htmlFor="student-first-name">First Name</Label>
-                  <Input
-                    id="student-first-name"
-                    value={firstName}
-                    onChange={(event) => setFirstName(event.target.value)}
-                    required
-                  />
+                  <Input id="student-first-name" value={firstName} onChange={(event) => setFirstName(event.target.value)} required />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="student-middle-name">Middle Name</Label>
-                  <Input
-                    id="student-middle-name"
-                    value={middleName}
-                    onChange={(event) => setMiddleName(event.target.value)}
-                  />
+                  <Input id="student-middle-name" value={middleName} onChange={(event) => setMiddleName(event.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="student-last-name">Last Name</Label>
-                  <Input
-                    id="student-last-name"
-                    value={lastName}
-                    onChange={(event) => setLastName(event.target.value)}
-                    required
-                  />
+                  <Input id="student-last-name" value={lastName} onChange={(event) => setLastName(event.target.value)} required />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="student-reg">Reg Number</Label>
-                  <Input
-                    id="student-reg"
-                    value={regNumber}
-                    onChange={(event) => setRegNumber(event.target.value)}
-                    required
-                  />
+                  <Input id="student-reg" value={regNumber} onChange={(event) => setRegNumber(event.target.value)} required />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="student-state">State of Origin</Label>
-                  <Input
-                    id="student-state"
-                    value={stateOfOrigin}
-                    onChange={(event) => setStateOfOrigin(event.target.value)}
-                    required
-                  />
+                  <Input id="student-state" value={stateOfOrigin} onChange={(event) => setStateOfOrigin(event.target.value)} required />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="student-lga">Local Government</Label>
-                  <Input
-                    id="student-lga"
-                    value={localGovernment}
-                    onChange={(event) => setLocalGovernment(event.target.value)}
-                    required
-                  />
+                  <Input id="student-lga" value={localGovernment} onChange={(event) => setLocalGovernment(event.target.value)} required />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="student-gender">Gender</Label>
@@ -304,42 +386,50 @@ export default function StudentsPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="student-dob">Date of Birth</Label>
-                  <Input
-                    id="student-dob"
-                    type="date"
-                    value={dateOfBirth}
-                    onChange={(event) => setDateOfBirth(event.target.value)}
-                    required
-                  />
+                  <Input id="student-dob" type="date" value={dateOfBirth} onChange={(event) => setDateOfBirth(event.target.value)} required />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="student-school">Initial School ID</Label>
-                  <Input
+                  <Label htmlFor="student-school">Initial School</Label>
+                  <select
                     id="student-school"
+                    className="w-full rounded-md border bg-background px-3 py-2 text-sm"
                     value={school}
                     onChange={(event) => {
                       setSchool(event.target.value)
                       setClassId("")
                     }}
                     required
-                  />
+                  >
+                    <option value="">Select school</option>
+                    {schools.map((item) => {
+                      const itemId = item._id ?? item.id ?? ""
+                      return (
+                        <option key={itemId} value={itemId}>
+                          {item.name}
+                        </option>
+                      )
+                    })}
+                  </select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="student-class">Initial Class ID</Label>
-                  <Input
+                  <Label htmlFor="student-class">Initial Class</Label>
+                  <select
                     id="student-class"
+                    className="w-full rounded-md border bg-background px-3 py-2 text-sm"
                     value={classId}
                     onChange={(event) => setClassId(event.target.value)}
                     required
-                  />
-                  {availableClassesForSelectedSchool.length ? (
-                    <p className="text-xs text-muted-foreground">
-                      Allowed class IDs for selected school: {availableClassesForSelectedSchool
-                        .map((item) => item._id ?? item.id)
-                        .filter(Boolean)
-                        .join(", ")}
-                    </p>
-                  ) : null}
+                  >
+                    <option value="">Select class</option>
+                    {availableClassesForSelectedSchool.map((item) => {
+                      const itemId = item._id ?? item.id ?? item.code
+                      return (
+                        <option key={itemId} value={itemId}>
+                          {item.code} - {item.name}
+                        </option>
+                      )
+                    })}
+                  </select>
                 </div>
                 {submitError ? <p className="text-sm text-destructive">{submitError}</p> : null}
                 <Button type="submit" disabled={isSubmitting}>
@@ -390,12 +480,12 @@ export default function StudentsPage() {
             <CardTitle className="text-sm">Total</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-semibold">{students.length}</p>
+            <p className="text-2xl font-semibold">{totalResults}</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Active</CardTitle>
+            <CardTitle className="text-sm">Active On Page</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-semibold">{activeCount}</p>
@@ -416,11 +506,116 @@ export default function StudentsPage() {
           <CardTitle>Students Table</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <div className="space-y-2">
+              <Label htmlFor="filter-gender">Gender</Label>
+              <select
+                id="filter-gender"
+                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                value={filterGender}
+                onChange={(event) => {
+                  setFilterGender(event.target.value)
+                  setPage(1)
+                }}
+              >
+                <option value="">All genders</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="filter-school">School</Label>
+              <select
+                id="filter-school"
+                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                value={filterSchool}
+                onChange={(event) => {
+                  setFilterSchool(event.target.value)
+                  setFilterClassId("")
+                  setPage(1)
+                }}
+              >
+                <option value="">All schools</option>
+                {schools.map((item) => {
+                  const itemId = item._id ?? item.id ?? ""
+                  return (
+                    <option key={itemId} value={itemId}>
+                      {item.name}
+                    </option>
+                  )
+                })}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="filter-session">Academic Session</Label>
+              <select
+                id="filter-session"
+                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                value={filterAcademicSessionId}
+                onChange={(event) => {
+                  setFilterAcademicSessionId(event.target.value)
+                  setPage(1)
+                }}
+              >
+                <option value="">All academic sessions</option>
+                {academicSessions.map((item) => {
+                  const itemId = item._id ?? item.id ?? ""
+                  return (
+                    <option key={itemId} value={itemId}>
+                      {formatAcademicSession(item)}
+                    </option>
+                  )
+                })}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="filter-class">Class</Label>
+              <select
+                id="filter-class"
+                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                value={filterClassId}
+                onChange={(event) => {
+                  setFilterClassId(event.target.value)
+                  setPage(1)
+                }}
+              >
+                <option value="">All classes</option>
+                {filteredClasses.map((item) => {
+                  const itemId = item._id ?? item.id ?? item.code
+                  return (
+                    <option key={itemId} value={itemId}>
+                      {item.code} - {item.name}
+                    </option>
+                  )
+                })}
+              </select>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <p className="text-sm text-muted-foreground">Showing {students.length} of {totalResults} students</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                aria-label="Rows per page"
+                className="rounded-md border bg-background px-3 py-2 text-sm"
+                value={String(limit)}
+                onChange={(event) => {
+                  setLimit(Number(event.target.value))
+                  setPage(1)
+                }}
+              >
+                <option value="10">10 per page</option>
+                <option value="20">20 per page</option>
+                <option value="50">50 per page</option>
+                <option value="100">100 per page</option>
+              </select>
+              <Button type="button" variant="outline" onClick={clearFilters}>Clear Filters</Button>
+            </div>
+          </div>
+
           {loadError ? <p className="text-sm text-destructive">{loadError}</p> : null}
           {loading ? <p className="text-sm text-muted-foreground">Loading...</p> : null}
-          {!loading && students.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No students found.</p>
-          ) : null}
+          {!loading && students.length === 0 ? <p className="text-sm text-muted-foreground">No students found.</p> : null}
           {!loading && students.length > 0 ? (
             <div className="overflow-x-auto rounded-md border">
               <table className="min-w-full text-left text-sm">
@@ -430,6 +625,9 @@ export default function StudentsPage() {
                     <th className="px-3 py-2 font-medium">Middle Name</th>
                     <th className="px-3 py-2 font-medium">Last Name</th>
                     <th className="px-3 py-2 font-medium">Reg Number</th>
+                    <th className="px-3 py-2 font-medium">School</th>
+                    <th className="px-3 py-2 font-medium">Academic Session</th>
+                    <th className="px-3 py-2 font-medium">Class</th>
                     <th className="px-3 py-2 font-medium">State</th>
                     <th className="px-3 py-2 font-medium">LGA</th>
                     <th className="px-3 py-2 font-medium">Gender</th>
@@ -444,6 +642,9 @@ export default function StudentsPage() {
                       <td className="px-3 py-2">{item.middleName || "-"}</td>
                       <td className="px-3 py-2">{item.lastName}</td>
                       <td className="px-3 py-2">{item.regNumber}</td>
+                      <td className="px-3 py-2">{schoolNameMap.get(item.currentEnrollment?.school || "") || "-"}</td>
+                      <td className="px-3 py-2">{item.currentEnrollment?.academicSession || "-"}</td>
+                      <td className="px-3 py-2">{classLabelMap.get(item.currentEnrollment?.classId || "") || "-"}</td>
                       <td className="px-3 py-2">{item.stateOfOrigin}</td>
                       <td className="px-3 py-2">{item.localGovernment}</td>
                       <td className="px-3 py-2">{item.gender}</td>
@@ -453,6 +654,20 @@ export default function StudentsPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          ) : null}
+
+          {!loading && totalPages > 1 ? (
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm text-muted-foreground">Page {page} of {totalPages}</p>
+              <div className="flex items-center gap-2">
+                <Button type="button" variant="outline" disabled={page <= 1} onClick={() => setPage((current) => current - 1)}>
+                  Previous
+                </Button>
+                <Button type="button" variant="outline" disabled={page >= totalPages} onClick={() => setPage((current) => current + 1)}>
+                  Next
+                </Button>
+              </div>
             </div>
           ) : null}
         </CardContent>

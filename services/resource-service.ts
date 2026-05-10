@@ -156,7 +156,15 @@ export const resourceService = {
     })
   },
 
-  getStudents(params?: { limit?: number; page?: number; school?: string; classId?: string }) {
+  getStudents(params?: {
+    limit?: number
+    page?: number
+    school?: string
+    classId?: string
+    gender?: "male" | "female"
+    academicSession?: string
+    academicSessionId?: string
+  }) {
     return request<PaginatedResponse<Student>>(`/api/students${toQueryString(params)}`)
   },
   createStudent(input: CreateStudentInput) {

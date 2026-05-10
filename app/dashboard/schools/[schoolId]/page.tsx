@@ -157,19 +157,26 @@ export default function SchoolViewPage() {
     setError(null)
 
     try {
-      const [schoolResult, schoolBoardsResult, schoolTypesResult, staffResult, studentsResult] = await Promise.all([
+      const [schoolResult, schoolBoardsResult, schoolTypesResult, staffResult] = await Promise.all([
         resourceService.getSchoolById(schoolId),
         resourceService.getSchoolBoards(),
         resourceService.getSchoolTypes({ limit: 200, page: 1 }),
         resourceService.getStaff({ school: schoolId, limit: 200, page: 1 }),
-        resourceService.getStudents({ school: schoolId, limit: 200, page: 1 }),
       ])
 
       setSchool(schoolResult)
       setSchoolBoards(schoolBoardsResult.results)
       setSchoolTypes(schoolTypesResult.results)
       setStaffList(staffResult.results)
-      setStudentList(studentsResult.results)
+
+      try {
+        const studentsResult = await resourceService.getStudents({ school: schoolId, limit: 200, page: 1 })
+        setStudentList(studentsResult.results)
+      } catch (studentLoadError) {
+        setStudentList([])
+        console.warn("Unable to load students for school page:", studentLoadError)
+      }
+
       syncEditFields(schoolResult)
 
       if (searchParams.get("mode") === "edit") {

@@ -28,6 +28,7 @@ function getSchoolId(school: School | null) {
 }
 
 export default function SchoolViewPage() {
+  const PAGE_SIZE = 10
   const params = useParams<{ schoolId: string }>()
   const searchParams = useSearchParams()
   const schoolId = typeof params.schoolId === "string" ? params.schoolId : ""
@@ -37,6 +38,8 @@ export default function SchoolViewPage() {
   const [schoolTypes, setSchoolTypes] = useState<SchoolType[]>([])
   const [staffList, setStaffList] = useState<Staff[]>([])
   const [studentList, setStudentList] = useState<Student[]>([])
+  const [staffPage, setStaffPage] = useState(1)
+  const [studentPage, setStudentPage] = useState(1)
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -97,6 +100,26 @@ export default function SchoolViewPage() {
     const allowedIds = new Set(school?.schoolTypes ?? [])
     return schoolTypes.filter((item) => allowedIds.has(item._id ?? item.id ?? ""))
   }, [school?.schoolTypes, schoolTypes])
+
+  const staffTotalPages = useMemo(
+    () => Math.max(1, Math.ceil(staffList.length / PAGE_SIZE)),
+    [staffList.length]
+  )
+
+  const studentTotalPages = useMemo(
+    () => Math.max(1, Math.ceil(studentList.length / PAGE_SIZE)),
+    [studentList.length]
+  )
+
+  const paginatedStaffList = useMemo(() => {
+    const start = (staffPage - 1) * PAGE_SIZE
+    return staffList.slice(start, start + PAGE_SIZE)
+  }, [staffList, staffPage])
+
+  const paginatedStudentList = useMemo(() => {
+    const start = (studentPage - 1) * PAGE_SIZE
+    return studentList.slice(start, start + PAGE_SIZE)
+  }, [studentList, studentPage])
 
   const existingSchoolUsers = useMemo(() => {
     const users = staffList
@@ -168,12 +191,15 @@ export default function SchoolViewPage() {
       setSchoolBoards(schoolBoardsResult.results)
       setSchoolTypes(schoolTypesResult.results)
       setStaffList(staffResult.results)
+      setStaffPage(1)
 
       try {
         const studentsResult = await resourceService.getStudents({ school: schoolId, limit: 200, page: 1 })
         setStudentList(studentsResult.results)
+        setStudentPage(1)
       } catch (studentLoadError) {
         setStudentList([])
+        setStudentPage(1)
         console.warn("Unable to load students for school page:", studentLoadError)
       }
 
@@ -747,37 +773,67 @@ export default function SchoolViewPage() {
             <CardHeader>
               <CardTitle>Staff Table</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-3">
               {staffList.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No staff records found.</p>
               ) : (
-                <div className="overflow-x-auto rounded-md border">
-                  <table className="min-w-full text-left text-sm">
-                    <thead className="bg-muted/40 text-muted-foreground">
-                      <tr>
-                        <th className="px-3 py-2 font-medium">Staff ID</th>
-                        <th className="px-3 py-2 font-medium">Employment Type</th>
-                        <th className="px-3 py-2 font-medium">Employee ID</th>
-                        <th className="px-3 py-2 font-medium">Designation</th>
-                        <th className="px-3 py-2 font-medium">Active</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {staffList.map((staff) => {
-                        const id = staff._id ?? staff.id ?? "-"
-                        return (
-                          <tr key={id} className="border-t">
-                            <td className="px-3 py-2">{id}</td>
-                            <td className="px-3 py-2">{staff.employmentType ?? "-"}</td>
-                            <td className="px-3 py-2">{staff.employeeId ?? "-"}</td>
-                            <td className="px-3 py-2">{staff.designation ?? "-"}</td>
-                            <td className="px-3 py-2">{staff.isActive ? "Yes" : "No"}</td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    Showing {paginatedStaffList.length} of {staffList.length} staff records
+                  </p>
+                  <div className="overflow-x-auto rounded-md border">
+                    <table className="min-w-full text-left text-sm">
+                      <thead className="bg-muted/40 text-muted-foreground">
+                        <tr>
+                          <th className="px-3 py-2 font-medium">Staff ID</th>
+                          <th className="px-3 py-2 font-medium">Employment Type</th>
+                          <th className="px-3 py-2 font-medium">Employee ID</th>
+                          <th className="px-3 py-2 font-medium">Designation</th>
+                          <th className="px-3 py-2 font-medium">Active</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paginatedStaffList.map((staff) => {
+                          const id = staff._id ?? staff.id ?? "-"
+                          return (
+                            <tr key={id} className="border-t">
+                              <td className="px-3 py-2">{id}</td>
+                              <td className="px-3 py-2">{staff.employmentType ?? "-"}</td>
+                              <td className="px-3 py-2">{staff.employeeId ?? "-"}</td>
+                              <td className="px-3 py-2">{staff.designation ?? "-"}</td>
+                              <td className="px-3 py-2">{staff.isActive ? "Yes" : "No"}</td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  {staffTotalPages > 1 ? (
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm text-muted-foreground">
+                        Page {staffPage} of {staffTotalPages}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={staffPage <= 1}
+                          onClick={() => setStaffPage((current) => current - 1)}
+                        >
+                          Previous
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={staffPage >= staffTotalPages}
+                          onClick={() => setStaffPage((current) => current + 1)}
+                        >
+                          Next
+                        </Button>
+                      </div>
+                    </div>
+                  ) : null}
+                </>
               )}
             </CardContent>
           </Card>
@@ -786,37 +842,67 @@ export default function SchoolViewPage() {
             <CardHeader>
               <CardTitle>Students Table</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-3">
               {studentList.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No students found.</p>
               ) : (
-                <div className="overflow-x-auto rounded-md border">
-                  <table className="min-w-full text-left text-sm">
-                    <thead className="bg-muted/40 text-muted-foreground">
-                      <tr>
-                        <th className="px-3 py-2 font-medium">Reg Number</th>
-                        <th className="px-3 py-2 font-medium">First Name</th>
-                        <th className="px-3 py-2 font-medium">Last Name</th>
-                        <th className="px-3 py-2 font-medium">Gender</th>
-                        <th className="px-3 py-2 font-medium">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {studentList.map((student) => {
-                        const id = student._id ?? student.id ?? student.regNumber
-                        return (
-                          <tr key={id} className="border-t">
-                            <td className="px-3 py-2">{student.regNumber}</td>
-                            <td className="px-3 py-2">{student.firstName}</td>
-                            <td className="px-3 py-2">{student.lastName}</td>
-                            <td className="px-3 py-2">{student.gender}</td>
-                            <td className="px-3 py-2">{student.status ?? "active"}</td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    Showing {paginatedStudentList.length} of {studentList.length} students
+                  </p>
+                  <div className="overflow-x-auto rounded-md border">
+                    <table className="min-w-full text-left text-sm">
+                      <thead className="bg-muted/40 text-muted-foreground">
+                        <tr>
+                          <th className="px-3 py-2 font-medium">Reg Number</th>
+                          <th className="px-3 py-2 font-medium">First Name</th>
+                          <th className="px-3 py-2 font-medium">Last Name</th>
+                          <th className="px-3 py-2 font-medium">Gender</th>
+                          <th className="px-3 py-2 font-medium">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paginatedStudentList.map((student) => {
+                          const id = student._id ?? student.id ?? student.regNumber
+                          return (
+                            <tr key={id} className="border-t">
+                              <td className="px-3 py-2">{student.regNumber}</td>
+                              <td className="px-3 py-2">{student.firstName}</td>
+                              <td className="px-3 py-2">{student.lastName}</td>
+                              <td className="px-3 py-2">{student.gender}</td>
+                              <td className="px-3 py-2">{student.status ?? "active"}</td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  {studentTotalPages > 1 ? (
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm text-muted-foreground">
+                        Page {studentPage} of {studentTotalPages}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={studentPage <= 1}
+                          onClick={() => setStudentPage((current) => current - 1)}
+                        >
+                          Previous
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={studentPage >= studentTotalPages}
+                          onClick={() => setStudentPage((current) => current + 1)}
+                        >
+                          Next
+                        </Button>
+                      </div>
+                    </div>
+                  ) : null}
+                </>
               )}
             </CardContent>
           </Card>

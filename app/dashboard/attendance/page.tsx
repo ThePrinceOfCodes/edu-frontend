@@ -26,16 +26,77 @@ function clampPercentage(value: number) {
   return Math.max(0, Math.min(100, value))
 }
 
+function resolveGender(
+  row: { studentId: string; gender?: "male" | "female" },
+  fallbackMap?: Record<string, "male" | "female">
+) {
+  return row.gender ?? fallbackMap?.[row.studentId]
+}
+
+function getDayOfWeekName(dateKey: string) {
+  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+  const date = new Date(`${dateKey}T00:00:00Z`)
+  return days[date.getUTCDay()]
+}
+
+function getMonthName(dateKey: string) {
+  const date = new Date(`${dateKey}T00:00:00Z`)
+  return date.toLocaleDateString("en-US", { month: "short", year: "numeric" })
+}
+
+function getHeatmapTone(rate: number) {
+  if (rate >= 90) {
+    return {
+      barClass: "bg-emerald-600",
+      textClass: "text-emerald-700",
+      panelClass: "from-emerald-100/80 to-transparent",
+    }
+  }
+
+  if (rate >= 80) {
+    return {
+      barClass: "bg-lime-500",
+      textClass: "text-lime-700",
+      panelClass: "from-lime-100/80 to-transparent",
+    }
+  }
+
+  if (rate >= 70) {
+    return {
+      barClass: "bg-amber-500",
+      textClass: "text-amber-700",
+      panelClass: "from-amber-100/80 to-transparent",
+    }
+  }
+
+  if (rate >= 60) {
+    return {
+      barClass: "bg-orange-500",
+      textClass: "text-orange-700",
+      panelClass: "from-orange-100/80 to-transparent",
+    }
+  }
+
+  return {
+    barClass: "bg-rose-600",
+    textClass: "text-rose-700",
+    panelClass: "from-rose-100/80 to-transparent",
+  }
+}
+
 export default function AttendancePage() {
   const [schools, setSchools] = useState<School[]>([])
   const [schoolClasses, setSchoolClasses] = useState<Class[]>([])
   const [allSchoolSummaries, setAllSchoolSummaries] = useState<AttendanceSummary[]>([])
+  const [allSchoolGenderMaps, setAllSchoolGenderMaps] = useState<Record<string, Record<string, "male" | "female">>>({})
+  const [selectedSchoolGenderMap, setSelectedSchoolGenderMap] = useState<Record<string, "male" | "female">>({})
   const [selectedSchool, setSelectedSchool] = useState("")
   const [selectedClassId, setSelectedClassId] = useState("")
   const [summary, setSummary] = useState<AttendanceSummary | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [classesLoading, setClassesLoading] = useState(false)
+  const [trendView, setTrendView] = useState<"weekly" | "monthly">("weekly")
 
   async function resolveActiveTermId(schoolId: string) {
     try {
@@ -72,11 +133,13 @@ export default function AttendancePage() {
   useEffect(() => {
     if (selectedSchool) {
       setAllSchoolSummaries([])
+      setAllSchoolGenderMaps({})
       return
     }
 
     if (schools.length === 0) {
       setAllSchoolSummaries([])
+      setAllSchoolGenderMaps({})
       setLoading(false)
       return
     }
@@ -113,10 +176,44 @@ export default function AttendancePage() {
           return
         }
 
-        setAllSchoolSummaries(summaries.filter((item): item is AttendanceSummary => item !== null))
+        const filteredSummaries = summaries.filter((item): item is AttendanceSummary => item !== null)
+        setAllSchoolSummaries(filteredSummaries)
+
+        const schoolGenderEntries = await Promise.all(
+          filteredSummaries.map(async (schoolSummary) => {
+            try {
+              const studentResult = await resourceService.getStudents({
+                school: schoolSummary.school.id,
+                limit: 1000,
+                page: 1,
+              })
+
+              const genderMap = studentResult.results.reduce<Record<string, "male" | "female">>((acc, student) => {
+                const studentId = student._id ?? student.id
+                if (!studentId || (student.gender !== "male" && student.gender !== "female")) {
+                  return acc
+                }
+
+                acc[studentId] = student.gender
+                return acc
+              }, {})
+
+              return [schoolSummary.school.id, genderMap] as const
+            } catch {
+              return [schoolSummary.school.id, {}] as const
+            }
+          })
+        )
+
+        if (cancelled) {
+          return
+        }
+
+        setAllSchoolGenderMaps(Object.fromEntries(schoolGenderEntries))
       } catch (error) {
         if (!cancelled) {
           setAllSchoolSummaries([])
+          setAllSchoolGenderMaps({})
           setLoadError(error instanceof Error ? error.message : "Unable to load attendance summary")
         }
       } finally {
@@ -137,6 +234,7 @@ export default function AttendancePage() {
     if (!selectedSchool) {
       setSchoolClasses([])
       setSelectedClassId("")
+      setSelectedSchoolGenderMap({})
       return
     }
 
@@ -146,9 +244,10 @@ export default function AttendancePage() {
       setClassesLoading(true)
 
       try {
-        const [schoolDetail, classResult] = await Promise.all([
+        const [schoolDetail, classResult, studentResult] = await Promise.all([
           resourceService.getSchoolById(selectedSchool),
-          resourceService.getClasses({ limit: 500, page: 1 }),
+          resourceService.getClasses({ limit: 500, page: 1, schoolId: selectedSchool }),
+          resourceService.getStudents({ school: selectedSchool, limit: 1000, page: 1 }),
         ])
 
         if (cancelled) {
@@ -161,6 +260,16 @@ export default function AttendancePage() {
           .sort((left, right) => left.code.localeCompare(right.code))
 
         setSchoolClasses(nextClasses)
+        const genderMap = studentResult.results.reduce<Record<string, "male" | "female">>((acc, student) => {
+          const studentId = student._id ?? student.id
+          if (!studentId || (student.gender !== "male" && student.gender !== "female")) {
+            return acc
+          }
+
+          acc[studentId] = student.gender
+          return acc
+        }, {})
+        setSelectedSchoolGenderMap(genderMap)
         setSelectedClassId((current) =>
           nextClasses.some((classItem) => (classItem._id ?? classItem.id) === current) ? current : ""
         )
@@ -168,6 +277,7 @@ export default function AttendancePage() {
         if (!cancelled) {
           setSchoolClasses([])
           setSelectedClassId("")
+          setSelectedSchoolGenderMap({})
           setLoadError(error instanceof Error ? error.message : "Unable to load classes")
         }
       } finally {
@@ -236,17 +346,30 @@ export default function AttendancePage() {
 
     const dayMap = new Map<string, { date: string; label: string; present: number; absent: number }>()
     const schoolPerformance: Array<{ schoolId: string; schoolName: string; rate: number; present: number; absent: number }> = []
+    const schoolSummaries: Array<{
+      schoolId: string
+      schoolName: string
+      totalStudents: number
+      attendancePercentage: number
+      maleAttendancePercentage: number
+      femaleAttendancePercentage: number
+    }> = []
     let totalStudents = 0
     let totalMaleStudents = 0
     let totalFemaleStudents = 0
 
     allSchoolSummaries.forEach((schoolSummary) => {
+      const fallbackGenderMap = allSchoolGenderMaps[schoolSummary.school.id]
       totalStudents += schoolSummary.rows.length
-      totalMaleStudents += schoolSummary.rows.filter((row) => row.gender === "male").length
-      totalFemaleStudents += schoolSummary.rows.filter((row) => row.gender === "female").length
+      totalMaleStudents += schoolSummary.rows.filter((row) => resolveGender(row, fallbackGenderMap) === "male").length
+      totalFemaleStudents += schoolSummary.rows.filter((row) => resolveGender(row, fallbackGenderMap) === "female").length
       const schoolVisibleDays = schoolSummary.days.filter((day) => isWeekday(day.date))
       let schoolPresent = 0
       let schoolAbsent = 0
+      let schoolMalePresent = 0
+      let schoolMaleAbsent = 0
+      let schoolFemalePresent = 0
+      let schoolFemaleAbsent = 0
 
       schoolVisibleDays.forEach((day) => {
         if (!dayMap.has(day.date)) {
@@ -265,12 +388,23 @@ export default function AttendancePage() {
 
         schoolSummary.rows.forEach((row) => {
           const status = row.statusByDate[day.date]
+          const gender = resolveGender(row, fallbackGenderMap)
           if (status === "present") {
             bucket.present += 1
             schoolPresent += 1
+            if (gender === "male") {
+              schoolMalePresent += 1
+            } else if (gender === "female") {
+              schoolFemalePresent += 1
+            }
           } else if (status === "absent") {
             bucket.absent += 1
             schoolAbsent += 1
+            if (gender === "male") {
+              schoolMaleAbsent += 1
+            } else if (gender === "female") {
+              schoolFemaleAbsent += 1
+            }
           }
         })
       })
@@ -282,6 +416,17 @@ export default function AttendancePage() {
         rate: schoolTotal > 0 ? Number(((schoolPresent / schoolTotal) * 100).toFixed(2)) : 0,
         present: schoolPresent,
         absent: schoolAbsent,
+      })
+
+      const maleTotal = schoolMalePresent + schoolMaleAbsent
+      const femaleTotal = schoolFemalePresent + schoolFemaleAbsent
+      schoolSummaries.push({
+        schoolId: schoolSummary.school.id,
+        schoolName: schoolSummary.school.name,
+        totalStudents: schoolSummary.rows.length,
+        attendancePercentage: schoolTotal > 0 ? Number(((schoolPresent / schoolTotal) * 100).toFixed(2)) : 0,
+        maleAttendancePercentage: maleTotal > 0 ? Number(((schoolMalePresent / maleTotal) * 100).toFixed(2)) : 0,
+        femaleAttendancePercentage: femaleTotal > 0 ? Number(((schoolFemalePresent / femaleTotal) * 100).toFixed(2)) : 0,
       })
     })
 
@@ -321,18 +466,19 @@ export default function AttendancePage() {
       malePercentage: genderTotal > 0 ? Number(((totalMaleStudents / genderTotal) * 100).toFixed(2)) : 0,
       femalePercentage: genderTotal > 0 ? Number(((totalFemaleStudents / genderTotal) * 100).toFixed(2)) : 0,
       schoolsWithData: allSchoolSummaries.length,
+      schoolSummaries,
       bestSchools: sortedSchoolPerformance.slice(0, 5),
       worstSchools: [...sortedSchoolPerformance].reverse().slice(0, 5),
     }
-  }, [allSchoolSummaries])
+  }, [allSchoolSummaries, allSchoolGenderMaps])
   const dashboardMetrics = useMemo(() => {
     if (!summary) {
       return null
     }
 
     const classStats = new Map<string, { classId: string; className: string; present: number; absent: number }>()
-    const totalMaleStudents = summary.rows.filter((row) => row.gender === "male").length
-    const totalFemaleStudents = summary.rows.filter((row) => row.gender === "female").length
+    const totalMaleStudents = summary.rows.filter((row) => resolveGender(row, selectedSchoolGenderMap) === "male").length
+    const totalFemaleStudents = summary.rows.filter((row) => resolveGender(row, selectedSchoolGenderMap) === "female").length
 
     const dailyBreakdown = visibleDays.map((day) => {
       let present = 0
@@ -402,6 +548,60 @@ export default function AttendancePage() {
       .filter((item) => item.total > 0)
       .sort((left, right) => right.rate - left.rate)
 
+    // Build weekly trend (all days)
+    const weeklyTrend = dailyBreakdown.map((day) => ({
+      date: day.date,
+      label: day.label,
+      rate: day.rate,
+      present: day.present,
+      absent: day.absent,
+    }))
+
+    // Build monthly trend data
+    const monthlyMap = new Map<string, { month: string; present: number; absent: number }>()
+    dailyBreakdown.forEach((day) => {
+      const month = getMonthName(day.date)
+      if (!monthlyMap.has(month)) {
+        monthlyMap.set(month, { month, present: 0, absent: 0 })
+      }
+      const bucket = monthlyMap.get(month)!
+      bucket.present += day.present
+      bucket.absent += day.absent
+    })
+    const monthlyTrend = Array.from(monthlyMap.values()).map((item) => {
+      const total = item.present + item.absent
+      return {
+        ...item,
+        rate: total > 0 ? Number(((item.present / total) * 100).toFixed(2)) : 0,
+        total,
+      }
+    })
+
+    // Build day-of-week heatmap data
+    const dayOfWeekStats = new Map<number, { dayName: string; dayOfWeek: number; present: number; absent: number }>()
+    dailyBreakdown.forEach((day) => {
+      const date = new Date(`${day.date}T00:00:00Z`)
+      const dayOfWeek = date.getUTCDay()
+      const dayName = getDayOfWeekName(day.date)
+      
+      if (!dayOfWeekStats.has(dayOfWeek)) {
+        dayOfWeekStats.set(dayOfWeek, { dayName, dayOfWeek, present: 0, absent: 0 })
+      }
+      const bucket = dayOfWeekStats.get(dayOfWeek)!
+      bucket.present += day.present
+      bucket.absent += day.absent
+    })
+    const heatmapData = Array.from(dayOfWeekStats.values())
+      .sort((left, right) => left.dayOfWeek - right.dayOfWeek)
+      .map((item) => {
+        const total = item.present + item.absent
+        return {
+          ...item,
+          rate: total > 0 ? Number(((item.present / total) * 100).toFixed(2)) : 0,
+          total,
+        }
+      })
+
     return {
       presentMarks,
       absentMarks,
@@ -409,6 +609,9 @@ export default function AttendancePage() {
       overallRate,
       latestDay,
       recentTrend,
+      weeklyTrend,
+      monthlyTrend,
+      heatmapData,
       schoolDays: dailyBreakdown.length,
       totalMaleStudents,
       totalFemaleStudents,
@@ -417,7 +620,7 @@ export default function AttendancePage() {
       bestClasses: classPerformance.slice(0, 5),
       worstClasses: [...classPerformance].reverse().slice(0, 5),
     }
-  }, [summary, visibleDays])
+  }, [summary, visibleDays, selectedSchoolGenderMap])
   const activeDashboardMetrics = selectedSchool ? dashboardMetrics : allSchoolsDashboardMetrics
   const studentsCardValue = selectedSchool
     ? activeCount
@@ -428,6 +631,9 @@ export default function AttendancePage() {
   const worstSchools = !selectedSchool && activeDashboardMetrics && "worstSchools" in activeDashboardMetrics
     ? activeDashboardMetrics.worstSchools
     : []
+  const schoolSummaries = !selectedSchool && activeDashboardMetrics && "schoolSummaries" in activeDashboardMetrics
+    ? activeDashboardMetrics.schoolSummaries
+    : []
   const bestClasses = selectedSchool && activeDashboardMetrics && "bestClasses" in activeDashboardMetrics
     ? activeDashboardMetrics.bestClasses
     : []
@@ -436,103 +642,124 @@ export default function AttendancePage() {
     : []
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold">Attendance Dashboard</h2>
-          <p className="text-sm text-muted-foreground">
-            All schools metrics by default. Select a school and class to drill down into the register.
-          </p>
-        </div>
-        <div className="grid w-full gap-3 md:max-w-2xl md:grid-cols-2">
-          <div className="space-y-1">
-            <label htmlFor="attendance-school" className="text-sm font-medium">
-              School
-            </label>
-            <select
-              id="attendance-school"
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-              value={selectedSchool}
-              onChange={(event) => {
-                setSelectedSchool(event.target.value)
-                setSelectedClassId("")
-              }}
-            >
-              <option value="">All schools (dashboard)</option>
-              {schools.map((school) => {
-                const schoolId = school._id ?? school.id
-                if (!schoolId) {
-                  return null
-                }
-
-                return (
-                  <option key={schoolId} value={schoolId}>
-                    {school.name}
-                  </option>
-                )
-              })}
-            </select>
+    <div className="space-y-6 pb-6">
+      <Card className="overflow-hidden border-0 bg-gradient-to-r from-slate-900 via-cyan-950 to-teal-900 text-white shadow-lg">
+        <CardContent className="grid gap-5 p-5 md:grid-cols-[1.2fr_1fr] md:p-6">
+          <div className="space-y-3">
+            <p className="inline-flex rounded-full bg-white/15 px-3 py-1 text-xs font-medium tracking-wide text-white/90">
+              Attendance Intelligence
+            </p>
+            <div>
+              <h2 className="text-2xl font-semibold tracking-tight">Attendance Dashboard</h2>
+              <p className="mt-1 text-sm text-white/80">
+                Review school-wide trends, compare performance, and drill into class-level attendance in one place.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2 text-xs">
+              <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1">
+                {selectedClass ? `${selectedClass.code} Register` : selectedSchool ? "School Overview" : "All Schools Overview"}
+              </span>
+              <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1">
+                Students: {studentsCardValue}
+              </span>
+              <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 capitalize">
+                Scope: {selectedSchool ? (summary?.term.resolvedScope ?? "-") : "all schools"}
+              </span>
+            </div>
           </div>
-          <div className="space-y-1">
-            <label htmlFor="attendance-class" className="text-sm font-medium">
-              Class
-            </label>
-            <select
-              id="attendance-class"
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-              value={selectedClassId}
-              onChange={(event) => setSelectedClassId(event.target.value)}
-              disabled={!selectedSchool || classesLoading || schoolClasses.length === 0}
-            >
-              <option value="">All classes overview</option>
-              {schoolClasses.map((classItem) => {
-                const classId = classItem._id ?? classItem.id
-                if (!classId) {
-                  return null
-                }
 
-                return (
-                  <option key={classId} value={classId}>
-                    {classItem.code} • {classItem.name}
-                  </option>
-                )
-              })}
-            </select>
+          <div className="grid gap-3 rounded-xl border border-white/20 bg-white/10 p-4 backdrop-blur">
+            <div className="space-y-1">
+              <label htmlFor="attendance-school" className="text-xs font-semibold uppercase tracking-wide text-white/85">
+                School
+              </label>
+              <select
+                id="attendance-school"
+                className="w-full rounded-md border border-white/25 bg-black/15 px-3 py-2 text-sm text-white outline-none transition focus:border-white/50"
+                value={selectedSchool}
+                onChange={(event) => {
+                  setSelectedSchool(event.target.value)
+                  setSelectedClassId("")
+                }}
+              >
+                <option value="" className="text-foreground">All schools (dashboard)</option>
+                {schools.map((school) => {
+                  const schoolId = school._id ?? school.id
+                  if (!schoolId) {
+                    return null
+                  }
+
+                  return (
+                    <option key={schoolId} value={schoolId} className="text-foreground">
+                      {school.name}
+                    </option>
+                  )
+                })}
+              </select>
+            </div>
+
+            <div className="space-y-1">
+              <label htmlFor="attendance-class" className="text-xs font-semibold uppercase tracking-wide text-white/85">
+                Class
+              </label>
+              <select
+                id="attendance-class"
+                className="w-full rounded-md border border-white/25 bg-black/15 px-3 py-2 text-sm text-white outline-none transition focus:border-white/50"
+                value={selectedClassId}
+                onChange={(event) => setSelectedClassId(event.target.value)}
+                disabled={!selectedSchool || classesLoading || schoolClasses.length === 0}
+              >
+                <option value="" className="text-foreground">All classes overview</option>
+                {schoolClasses.map((classItem) => {
+                  const classId = classItem._id ?? classItem.id
+                  if (!classId) {
+                    return null
+                  }
+
+                  return (
+                    <option key={classId} value={classId} className="text-foreground">
+                      {classItem.code} • {classItem.name}
+                    </option>
+                  )
+                })}
+              </select>
+            </div>
+
+            <p className="text-xs text-white/75">
+              Term: {selectedSchool ? (summary?.term.name ?? "-") : "Active terms"}
+            </p>
           </div>
-        </div>
-      </div>
-
-      <div className="border-b">
-        <button className="border-b-2 border-primary px-1 py-2 text-sm font-medium text-foreground">
-          {selectedClass ? `${selectedClass.code} Register` : selectedSchool ? "School Overview" : "All Schools Overview"}
-        </button>
-      </div>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Students</CardTitle>
+        <Card className="border-0 bg-gradient-to-br from-white to-slate-50 shadow-sm">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Students</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-semibold">{studentsCardValue}</p>
+            <p className="text-3xl font-semibold tracking-tight">{studentsCardValue}</p>
+            <p className="text-xs text-muted-foreground">Covered in the current dashboard scope</p>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Term</CardTitle>
+        <Card className="border-0 bg-gradient-to-br from-white to-cyan-50 shadow-sm">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Term</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-base font-semibold">{selectedSchool ? (summary?.term.name ?? "-") : "Active terms"}</p>
+            <p className="text-lg font-semibold tracking-tight">{selectedSchool ? (summary?.term.name ?? "-") : "Active terms"}</p>
+            <p className="text-xs text-muted-foreground">Source term used for analytics</p>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Scope</CardTitle>
+        <Card className="border-0 bg-gradient-to-br from-white to-emerald-50 shadow-sm">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Scope</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-base font-semibold capitalize">
+            <p className="text-lg font-semibold capitalize tracking-tight">
               {selectedSchool ? (summary?.term.resolvedScope ?? "-") : "all schools"}
             </p>
+            <p className="text-xs text-muted-foreground">Current visibility context</p>
           </CardContent>
         </Card>
       </div>
@@ -568,7 +795,7 @@ export default function AttendancePage() {
           {!loading && !loadError && activeDashboardMetrics && !selectedClass ? (
             <div className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-                <Card className="border-0 bg-emerald-50 shadow-none">
+                <Card className="border-0 bg-gradient-to-br from-emerald-50 to-emerald-100/60 shadow-none">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm text-emerald-900">Overall Attendance</CardTitle>
                   </CardHeader>
@@ -577,7 +804,7 @@ export default function AttendancePage() {
                     <p className="text-sm text-emerald-800">Across {activeDashboardMetrics.schoolDays} school days</p>
                   </CardContent>
                 </Card>
-                <Card className="border-0 bg-slate-50 shadow-none">
+                <Card className="border-0 bg-gradient-to-br from-slate-50 to-slate-100/70 shadow-none">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm text-slate-900">Present Marks</CardTitle>
                   </CardHeader>
@@ -586,7 +813,7 @@ export default function AttendancePage() {
                     <p className="text-sm text-slate-700">Successful attendance entries</p>
                   </CardContent>
                 </Card>
-                <Card className="border-0 bg-rose-50 shadow-none">
+                <Card className="border-0 bg-gradient-to-br from-rose-50 to-rose-100/60 shadow-none">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm text-rose-900">Absent Marks</CardTitle>
                   </CardHeader>
@@ -595,7 +822,7 @@ export default function AttendancePage() {
                     <p className="text-sm text-rose-800">Absence records in term</p>
                   </CardContent>
                 </Card>
-                <Card className="border-0 bg-amber-50 shadow-none">
+                <Card className="border-0 bg-gradient-to-br from-amber-50 to-amber-100/60 shadow-none">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm text-amber-900">Latest Day Snapshot</CardTitle>
                   </CardHeader>
@@ -610,7 +837,7 @@ export default function AttendancePage() {
                     </p>
                   </CardContent>
                 </Card>
-                <Card className="border-0 bg-sky-50 shadow-none">
+                <Card className="border-0 bg-gradient-to-br from-sky-50 to-cyan-100/60 shadow-none">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm text-sky-900">Boys vs Girls</CardTitle>
                   </CardHeader>
@@ -627,38 +854,67 @@ export default function AttendancePage() {
 
               <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
                 <Card className="shadow-none">
-                  <CardHeader>
-                    <CardTitle className="text-base">Recent Attendance Trend</CardTitle>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">
+                      {selectedSchool ? "Recent Attendance Trend" : "School Attendance Summaries"}
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-10 items-end gap-2">
-                      {activeDashboardMetrics.recentTrend.map((day) => (
-                        <div key={day.date} className="space-y-2 text-center">
-                          <div className="flex h-40 items-end justify-center rounded-md bg-muted/30 px-1 py-2">
-                            <div
-                              className="w-full rounded-t bg-emerald-500"
-                              style={{ height: `${clampPercentage(day.rate)}%` }}
-                              title={`${day.rate}% attendance`}
-                            />
+                    {!selectedSchool ? (
+                      <div className="overflow-x-auto rounded-md border">
+                        <table className="min-w-full text-sm">
+                          <thead className="bg-muted/40 text-muted-foreground">
+                            <tr>
+                              <th className="px-3 py-2 text-left font-medium">School</th>
+                              <th className="px-3 py-2 text-right font-medium">Total Students</th>
+                              <th className="px-3 py-2 text-right font-medium">Attendance %</th>
+                              <th className="px-3 py-2 text-right font-medium">Boys %</th>
+                              <th className="px-3 py-2 text-right font-medium">Girls %</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {schoolSummaries.map((item) => (
+                              <tr key={item.schoolId} className="border-t">
+                                <td className="px-3 py-2 font-medium">{item.schoolName}</td>
+                                <td className="px-3 py-2 text-right">{item.totalStudents}</td>
+                                <td className="px-3 py-2 text-right">{item.attendancePercentage}%</td>
+                                <td className="px-3 py-2 text-right">{item.maleAttendancePercentage}%</td>
+                                <td className="px-3 py-2 text-right">{item.femaleAttendancePercentage}%</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-10 items-end gap-2">
+                        {activeDashboardMetrics.recentTrend.map((day) => (
+                          <div key={day.date} className="space-y-2 text-center">
+                            <div className="flex h-40 items-end justify-center rounded-md bg-slate-100/80 px-1 py-2">
+                              <div
+                                className="w-full rounded-t bg-gradient-to-b from-cyan-400 to-cyan-600"
+                                style={{ height: `${clampPercentage(day.rate)}%` }}
+                                title={`${day.rate}% attendance`}
+                              />
+                            </div>
+                            <div className="text-xs text-muted-foreground">{day.label}</div>
                           </div>
-                          <div className="text-xs text-muted-foreground">{day.label}</div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
 
                 <Card className="shadow-none">
-                  <CardHeader>
+                  <CardHeader className="pb-3">
                     <CardTitle className="text-base">Attendance Split</CardTitle>
                   </CardHeader>
                   <CardContent className="flex flex-col items-center gap-4">
                     <div
                       className="flex size-40 items-center justify-center rounded-full"
                       style={{
-                        background: `conic-gradient(#16a34a 0deg ${clampPercentage(
+                        background: `conic-gradient(#0284c7 0deg ${clampPercentage(
                           activeDashboardMetrics.overallRate
-                        ) * 3.6}deg, #ef4444 ${clampPercentage(activeDashboardMetrics.overallRate) * 3.6}deg 360deg)`,
+                        ) * 3.6}deg, #f43f5e ${clampPercentage(activeDashboardMetrics.overallRate) * 3.6}deg 360deg)`,
                       }}
                     >
                       <div className="flex size-24 items-center justify-center rounded-full bg-background text-center">
@@ -709,6 +965,223 @@ export default function AttendancePage() {
                   </CardContent>
                 </Card>
               </div>
+
+              {selectedSchool && activeDashboardMetrics && "weeklyTrend" in activeDashboardMetrics ? (
+                <div className="grid gap-4 lg:grid-cols-[1.6fr_0.9fr]">
+                  <Card className="shadow-none">
+                    <CardHeader>
+                      <div className="flex items-center justify-between gap-3">
+                        <CardTitle className="text-base">Attendance Trend</CardTitle>
+                        <div className="inline-flex rounded-md border bg-muted/20 p-1 text-xs">
+                          <button
+                            type="button"
+                            className={`rounded px-2 py-1 transition ${
+                              trendView === "weekly"
+                                ? "bg-cyan-600 text-white"
+                                : "text-muted-foreground hover:bg-muted"
+                            }`}
+                            onClick={() => setTrendView("weekly")}
+                          >
+                            Weekly
+                          </button>
+                          <button
+                            type="button"
+                            className={`rounded px-2 py-1 transition ${
+                              trendView === "monthly"
+                                ? "bg-cyan-600 text-white"
+                                : "text-muted-foreground hover:bg-muted"
+                            }`}
+                            onClick={() => setTrendView("monthly")}
+                          >
+                            Monthly
+                          </button>
+                        </div>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {trendView === "weekly"
+                          ? "Attendance by school day in the selected term"
+                          : "Term-level trend by calendar month"}
+                      </p>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {trendView === "weekly" ? (
+                        activeDashboardMetrics.weeklyTrend.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">No weekly trend data available.</p>
+                        ) : (
+                          (() => {
+                            const chartData = activeDashboardMetrics.weeklyTrend
+                            const chartWidth = Math.max(640, chartData.length * 56)
+                            const chartHeight = 220
+                            const padding = { top: 18, right: 18, bottom: 32, left: 38 }
+                            const innerWidth = chartWidth - padding.left - padding.right
+                            const innerHeight = chartHeight - padding.top - padding.bottom
+                            const denominator = Math.max(chartData.length - 1, 1)
+
+                            const points = chartData.map((day, index) => {
+                              const x = padding.left + (index / denominator) * innerWidth
+                              const y = padding.top + ((100 - clampPercentage(day.rate)) / 100) * innerHeight
+                              return { x, y, day }
+                            })
+
+                            const linePath = points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ")
+                            const areaPath = `${linePath} L ${points[points.length - 1]?.x ?? padding.left} ${padding.top + innerHeight} L ${points[0]?.x ?? padding.left} ${padding.top + innerHeight} Z`
+                            const yTicks = [0, 25, 50, 75, 100]
+
+                            return (
+                              <div className="space-y-3 overflow-x-auto pb-2">
+                                <svg
+                                  width={chartWidth}
+                                  height={chartHeight}
+                                  viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+                                  className="rounded-md border bg-slate-50"
+                                  role="img"
+                                  aria-label="Weekly attendance line chart"
+                                >
+                                  {yTicks.map((tick) => {
+                                    const y = padding.top + ((100 - tick) / 100) * innerHeight
+                                    return (
+                                      <g key={tick}>
+                                        <line
+                                          x1={padding.left}
+                                          y1={y}
+                                          x2={padding.left + innerWidth}
+                                          y2={y}
+                                          stroke="currentColor"
+                                          className="text-slate-200"
+                                          strokeWidth="1"
+                                        />
+                                        <text
+                                          x={padding.left - 8}
+                                          y={y + 4}
+                                          textAnchor="end"
+                                          className="fill-slate-500 text-[10px]"
+                                        >
+                                          {tick}%
+                                        </text>
+                                      </g>
+                                    )
+                                  })}
+
+                                  <path d={areaPath} fill="url(#weeklyTrendAreaGradient)" opacity="0.35" />
+                                  <path
+                                    d={linePath}
+                                    fill="none"
+                                    stroke="url(#weeklyTrendLineGradient)"
+                                    strokeWidth="3"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  />
+
+                                  {points.map((point) => (
+                                    <g key={point.day.date}>
+                                      <circle cx={point.x} cy={point.y} r="4" className="fill-cyan-600" />
+                                      <circle cx={point.x} cy={point.y} r="7" className="fill-cyan-500/20" />
+                                      <title>{`${point.day.date}: ${point.day.rate}%`}</title>
+                                    </g>
+                                  ))}
+
+                                  <defs>
+                                    <linearGradient id="weeklyTrendLineGradient" x1="0" y1="0" x2="1" y2="0">
+                                      <stop offset="0%" stopColor="#06b6d4" />
+                                      <stop offset="100%" stopColor="#2563eb" />
+                                    </linearGradient>
+                                    <linearGradient id="weeklyTrendAreaGradient" x1="0" y1="0" x2="0" y2="1">
+                                      <stop offset="0%" stopColor="#22d3ee" />
+                                      <stop offset="100%" stopColor="#ffffff" />
+                                    </linearGradient>
+                                  </defs>
+                                </svg>
+
+                                <div className="flex min-w-max justify-between gap-4 px-1 text-[10px] text-muted-foreground">
+                                  {chartData.map((day) => (
+                                    <span key={day.date} className="w-8 text-center">
+                                      {day.label}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )
+                          })()
+                        )
+                      ) : (
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {activeDashboardMetrics.monthlyTrend.map((month) => (
+                            <div key={month.month} className="space-y-1 rounded-md border bg-slate-50/60 p-2">
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="font-medium">{month.month}</span>
+                                <span className="font-semibold text-cyan-700">{month.rate}%</span>
+                              </div>
+                              <div className="flex h-6 items-center rounded-full bg-muted/40">
+                                <div
+                                  className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-blue-600 transition-all"
+                                  style={{ width: `${clampPercentage(month.rate)}%` }}
+                                />
+                              </div>
+                              <p className="text-xs text-muted-foreground">{month.present} present • {month.absent} absent</p>
+                            </div>
+                          ))}
+                          {activeDashboardMetrics.monthlyTrend.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">No monthly trend data available.</p>
+                          ) : null}
+                        </div>
+                      )}
+                      <div className="border-t pt-2">
+                        <p className="text-xs text-muted-foreground">
+                          {trendView === "weekly" ? (
+                            <>
+                              Showing {activeDashboardMetrics.weeklyTrend.length} days • Average:{" "}
+                              {(
+                                activeDashboardMetrics.weeklyTrend.reduce((sum, d) => sum + d.rate, 0) /
+                                Math.max(activeDashboardMetrics.weeklyTrend.length, 1)
+                              ).toFixed(1)}%
+                            </>
+                          ) : (
+                            <>
+                              Showing {activeDashboardMetrics.monthlyTrend.length} months • Average:{" "}
+                              {(
+                                activeDashboardMetrics.monthlyTrend.reduce((sum, d) => sum + d.rate, 0) /
+                                Math.max(activeDashboardMetrics.monthlyTrend.length, 1)
+                              ).toFixed(1)}%
+                            </>
+                          )}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="shadow-none">
+                    <CardHeader>
+                      <CardTitle className="text-base">Day of Week Analysis</CardTitle>
+                      <p className="text-sm text-muted-foreground">Heatmap for day-level absence pressure</p>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {activeDashboardMetrics.heatmapData.map((day) => {
+                        const isMonday = day.dayOfWeek === 1
+                        const tone = getHeatmapTone(day.rate)
+
+                        return (
+                          <div
+                            key={day.dayOfWeek}
+                            className={`rounded-md bg-gradient-to-r p-3 ${tone.panelClass} ${isMonday ? "ring-2 ring-cyan-400/70" : ""}`}
+                          >
+                            <div className="mb-2 flex items-center justify-between">
+                              <span className="font-medium">
+                                {day.dayName}
+                                {isMonday ? " (high-risk)" : ""}
+                              </span>
+                              <span className={`font-semibold ${tone.textClass}`}>{day.rate}%</span>
+                            </div>
+                            <div className="mb-2 h-2 rounded-full bg-background/70">
+                              <div className={`h-2 rounded-full ${tone.barClass}`} style={{ width: `${clampPercentage(day.rate)}%` }} />
+                            </div>
+                            <p className="text-xs text-muted-foreground">{day.present} present • {day.absent} absent</p>
+                          </div>
+                        )
+                      })}
+                    </CardContent>
+                  </Card>
+                </div>
+              ) : null}
 
               {!selectedSchool ? (
                 <div className="grid gap-4 md:grid-cols-2">

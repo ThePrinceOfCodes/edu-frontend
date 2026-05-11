@@ -24,12 +24,14 @@ function SignInPageContent() {
     setIsSubmitting(true)
 
     try {
-      await authService.login({ email, password })
+      const loginResult = await authService.login({ email, password })
 
       const redirectTarget = searchParams.get("next")
 
       if (redirectTarget?.startsWith("/")) {
         router.push(redirectTarget)
+      } else if (loginResult.user?.role === "guardian") {
+        router.push("/dashboard/guardian")
       } else {
         router.push("/dashboard")
       }

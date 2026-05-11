@@ -5,33 +5,42 @@ import type {
   AttendanceSummary,
   BulkCreateSchoolsInput,
   BulkCreateStudentsInput,
+  BulkCreateResultsInput,
   BulkImportSchoolsResult,
   Class,
   CreateClassInput,
   CreateEventInput,
+  CreateGuardianInput,
   CreateInternalUserInput,
   CreateSchoolBoardInput,
   CreateSchoolInput,
   CreateSchoolTypeInput,
+  CreateSubjectInput,
+  CreateResultInput,
   CreateStaffInput,
   CreateStudentInput,
   CreateTermInput,
+  GuardiansListResponse,
   CreateMessageThreadInput,
+  GuardianStudentsOverviewResponse,
   InternalUser,
   Message,
   MessageThread,
   PaginatedResponse,
   PromoteStudentInput,
+  ResultRecord,
   School,
   SchoolBoard,
   SchoolEvent,
   SchoolType,
+  Subject,
   Staff,
   Student,
   Term,
   UpdateEventInput,
   UpdateSchoolInput,
   UpdateInternalUserInput,
+  UpdateResultInput,
   UpdateTermInput,
 } from "@/interfaces/resource-interface"
 import { request } from "@/services/http"
@@ -148,7 +157,17 @@ export const resourceService = {
     })
   },
 
-  getClasses(params?: { limit?: number; page?: number; schoolTypeId?: string }) {
+  getSubjects(params?: { limit?: number; page?: number; name?: string; code?: string }) {
+    return request<PaginatedResponse<Subject>>(`/api/subjects${toQueryString(params)}`)
+  },
+  createSubject(input: CreateSubjectInput) {
+    return request<Subject>("/api/subjects", {
+      method: "POST",
+      body: input,
+    })
+  },
+
+  getClasses(params?: { limit?: number; page?: number; schoolTypeId?: string; schoolId?: string }) {
     return request<PaginatedResponse<Class>>(`/api/classes${toQueryString(params)}`)
   },
   createClass(input: CreateClassInput) {
@@ -158,7 +177,16 @@ export const resourceService = {
     })
   },
 
-  getStudents(params?: { limit?: number; page?: number; school?: string; classId?: string }) {
+  getStudents(params?: {
+    limit?: number
+    page?: number
+    q?: string
+    school?: string
+    classId?: string
+    gender?: "male" | "female"
+    academicSession?: string
+    academicSessionId?: string
+  }) {
     return request<PaginatedResponse<Student>>(`/api/students${toQueryString(params)}`)
   },
   createStudent(input: CreateStudentInput) {
@@ -185,8 +213,87 @@ export const resourceService = {
       body: input,
     })
   },
+  createGuardian(input: CreateGuardianInput) {
+    return request<{
+      guardian: InternalUser
+      linkedStudentsCount: number
+      linkedStudentIds: string[]
+    }>("/api/guardians", {
+      method: "POST",
+      body: input,
+    })
+  },
+  getGuardians(params?: { q?: string }) {
+    return request<GuardiansListResponse>(`/api/guardians${toQueryString(params)}`)
+  },
+  linkStudentsToGuardian(guardianId: string, studentIds: string[]) {
+    return request<{ guardianId: string; linkedStudentIds: string[]; linkedStudentsCount: number }>(
+      `/api/guardians/${guardianId}/link-students`,
+      {
+        method: "POST",
+        body: { studentIds },
+      }
+    )
+  },
+  unlinkStudentsFromGuardian(guardianId: string, studentIds: string[]) {
+    return request<{ guardianId: string; unlinkedStudentIds: string[]; unlinkedStudentsCount: number }>(
+      `/api/guardians/${guardianId}/unlink-students`,
+      {
+        method: "POST",
+        body: { studentIds },
+      }
+    )
+  },
+  getGuardianStudentsOverview() {
+    return request<GuardianStudentsOverviewResponse>("/api/guardians/me/students-overview")
+  },
   getAttendanceSummary(params?: { school?: string; termId?: string; classId?: string }) {
     return request<AttendanceSummary>(`/api/attendance/summary${toQueryString(params)}`)
+  },
+
+  getResults(params?: {
+    limit?: number
+    page?: number
+    student?: string
+    school?: string
+    classId?: string
+    termId?: string
+    academicSessionId?: string
+    subject?: string
+  }) {
+    return request<PaginatedResponse<ResultRecord>>(`/api/results${toQueryString(params)}`)
+  },
+  createResult(input: CreateResultInput) {
+    return request<ResultRecord>("/api/results", {
+      method: "POST",
+      body: input,
+    })
+  },
+  bulkCreateResults(input: BulkCreateResultsInput) {
+    return request<{
+      total: number
+      createdCount: number
+      failedCount: number
+      created: ResultRecord[]
+      failed: Array<{ row: number; student?: string; reason: string }>
+    }>("/api/results/bulk-import", {
+      method: "POST",
+      body: input,
+    })
+  },
+  getResultById(resultId: string) {
+    return request<ResultRecord>(`/api/results/${resultId}`)
+  },
+  updateResult(resultId: string, input: UpdateResultInput) {
+    return request<ResultRecord>(`/api/results/${resultId}`, {
+      method: "PATCH",
+      body: input,
+    })
+  },
+  deleteResult(resultId: string) {
+    return request<Record<string, never>>(`/api/results/${resultId}`, {
+      method: "DELETE",
+    })
   },
 
   getAcademicSessions(params?: { limit?: number; page?: number; schoolBoard?: string }) {

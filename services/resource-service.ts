@@ -28,6 +28,8 @@ import type {
   MessageThread,
   PaginatedResponse,
   PromoteStudentInput,
+  QueueJob,
+  QueueStatus,
   ResultRecord,
   School,
   SchoolBoard,
@@ -439,5 +441,28 @@ export const resourceService = {
   },
   exportExtraction(id: string, format: AttendanceExtractionExportFormat) {
     return request<string>(`/api/attendant-extractions/${id}/export${toQueryString({ format })}`)
+  },
+  getQueueStatus() {
+    return request<QueueStatus>(`/api/attendant-extractions/queue/status`)
+  },
+  pauseQueue() {
+    return request<QueueStatus>(`/api/attendant-extractions/queue/pause`, { method: 'POST' })
+  },
+  resumeQueue() {
+    return request<QueueStatus>(`/api/attendant-extractions/queue/resume`, { method: 'POST' })
+  },
+  cleanQueue(age?: number) {
+    return request<{ cleaned: { completed: number; failed: number } }>(
+      `/api/attendant-extractions/queue/clean`,
+      { method: 'POST', body: age ? { age } : undefined }
+    )
+  },
+  retryFailedJobs() {
+    return request<{ retriedCount: number }>(`/api/attendant-extractions/queue/retry-failed`, { method: 'POST' })
+  },
+  getQueueJobs(type: 'waiting' | 'active' | 'failed', start?: number, end?: number) {
+    return request<{ jobs: QueueJob[] }>(
+      `/api/attendant-extractions/queue/jobs${toQueryString({ type, start, end })}`
+    )
   },
 }

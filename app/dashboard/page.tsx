@@ -165,13 +165,13 @@ export default function DashboardPage() {
 
         let defaultTermId = selectedTermId
         if (!defaultTermId) {
-          const activeTerm = termsList.find((item) => Boolean(item.isActive))
+          const activeTerm = termsList.find((item: Term) => Boolean(item.isActive))
           const firstTerm = termsList[0]
           defaultTermId = activeTerm?._id ?? activeTerm?.id ?? firstTerm?._id ?? firstTerm?.id ?? ""
         }
 
-        const defaultTerm = termsList.find((item) => (item._id ?? item.id) === defaultTermId)
-        const activeSession = (sessionsResult.results || []).find((item) => Boolean(item.isActive))
+        const defaultTerm = termsList.find((item: Term) => (item._id ?? item.id) === defaultTermId)
+        const activeSession = (sessionsResult.results || []).find((item: AcademicSession) => Boolean(item.isActive))
 
         setSelectedTermId(defaultTermId)
         setSelectedSessionId(defaultTerm?.academicSession ?? (activeSession ? `${activeSession.startYear}/${activeSession.endYear}` : ""))

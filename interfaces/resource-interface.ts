@@ -663,6 +663,29 @@ export interface MessageThread {
   updatedAt?: string
 }
 
+export interface QueueStatus {
+  queue: string
+  paused: boolean
+  counts: {
+    waiting: number
+    active: number
+    completed: number
+    failed: number
+    delayed: number
+  }
+}
+
+export interface QueueJob {
+  id?: string
+  name: string
+  data: Record<string, any>
+  progress: number
+  attemptsMade: number
+  finishedOn?: number
+  failedReason?: string
+  timestamp?: number
+}
+
 export interface Message {
   id?: string
   _id?: string

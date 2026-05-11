@@ -125,7 +125,7 @@ export default function ExtractionDetailPage({ params }: { params: Promise<{ id:
           resourceService.getSchoolById(result.schoolId).catch(() => null),
           resourceService
             .getTerms({ limit: 200, page: 1 })
-            .then((response) => response.results.find((entry) => (entry._id ?? entry.id) === result.termId) ?? null)
+            .then((response) => response.results.find((entry: Term) => (entry._id ?? entry.id) === result.termId) ?? null)
             .catch(() => null),
           resourceService.getClasses({ limit: 200, page: 1 }).catch(() => ({ results: [] })),
         ])

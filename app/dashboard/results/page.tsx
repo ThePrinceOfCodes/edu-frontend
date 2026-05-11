@@ -152,7 +152,7 @@ export default function ResultsPage() {
       ])
 
       const resolvedSchools = isSchoolScopedRole
-        ? schoolResult.results.filter((item) => (item._id ?? item.id) === scopedSchoolId)
+        ? schoolResult.results.filter((item: School) => (item._id ?? item.id) === scopedSchoolId)
         : schoolResult.results
 
       setSchools(resolvedSchools)

@@ -1,5 +1,7 @@
 import type {
   AcademicSession,
+  AttendantExtraction,
+  AttendanceExtractionExportFormat,
   AttendanceSummary,
   BulkCreateSchoolsInput,
   BulkCreateStudentsInput,
@@ -302,5 +304,33 @@ export const resourceService = {
     return request<Record<string, never>>(`/api/events/${eventId}`, {
       method: "DELETE",
     })
+  },
+
+  getExtractions(params?: { status?: string; limit?: number; page?: number; sortBy?: string }) {
+    return request<PaginatedResponse<AttendantExtraction>>(
+      `/api/attendant-extractions${toQueryString(params)}`
+    )
+  },
+  getPendingReviewExtractions(params?: { limit?: number; page?: number; sortBy?: string }) {
+    return request<PaginatedResponse<AttendantExtraction>>(
+      `/api/attendant-extractions/pending-review${toQueryString(params)}`
+    )
+  },
+  getExtractionById(id: string) {
+    return request<AttendantExtraction>(`/api/attendant-extractions/${id}`)
+  },
+  correctExtraction(id: string, input: Record<string, any>) {
+    return request<AttendantExtraction>(`/api/attendant-extractions/${id}/correct`, {
+      method: "PATCH",
+      body: input,
+    })
+  },
+  approveExtraction(id: string) {
+    return request<AttendantExtraction>(`/api/attendant-extractions/${id}/approve`, {
+      method: "POST",
+    })
+  },
+  exportExtraction(id: string, format: AttendanceExtractionExportFormat) {
+    return request<string>(`/api/attendant-extractions/${id}/export${toQueryString({ format })}`)
   },
 }

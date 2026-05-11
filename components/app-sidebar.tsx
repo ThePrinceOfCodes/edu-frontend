@@ -16,6 +16,7 @@ import {
   User,
   Settings,
   Users,
+  ClipboardCheck,
 } from "lucide-react"
 import type { AuthUser } from "@/interfaces/auth-interface"
 import { authService } from "@/services/auth-service"
@@ -64,6 +65,12 @@ const navItems = [
     url: "/dashboard/attendance",
     icon: CalendarDays,
     hideForInternal: true,
+  },
+  {
+    title: "Extraction Review",
+    url: "/dashboard/extractions",
+    icon: ClipboardCheck,
+    allowedRoles: ["super-admin", "admin"],
   },
   {
     title: "Schools",

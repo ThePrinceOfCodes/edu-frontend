@@ -1,8 +1,9 @@
 "use client"
 
-import { FormEvent, useEffect, useState } from "react"
+import Link from "next/link"
+import { FormEvent, useEffect, useMemo, useState } from "react"
 
-import type { Staff } from "@/interfaces/resource-interface"
+import type { School, Staff } from "@/interfaces/resource-interface"
 import { resourceService } from "@/services/resource-service"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -19,6 +20,7 @@ import {
 
 export default function StaffPage() {
   const [staffList, setStaffList] = useState<Staff[]>([])
+  const [schools, setSchools] = useState<School[]>([])
   const [userName, setUserName] = useState("")
   const [userEmail, setUserEmail] = useState("")
   const [userPassword, setUserPassword] = useState("")
@@ -37,13 +39,25 @@ export default function StaffPage() {
   const teacherCount = staffList.filter((item) => item.employmentType === "teacher").length
   const independentSchoolCount = staffList.filter((item) => item.school && !item.schoolBoard).length
 
+  const schoolNameMap = useMemo(
+    () =>
+      new Map(
+        schools.map((item) => [item._id ?? item.id ?? "", item.name])
+      ),
+    [schools]
+  )
+
   async function loadStaff() {
     setLoadError(null)
     setLoading(true)
 
     try {
-      const result = await resourceService.getStaff()
-      setStaffList(result.results)
+      const [staffResult, schoolsResult] = await Promise.all([
+        resourceService.getStaff(),
+        resourceService.getSchools({ limit: 1000, page: 1 }),
+      ])
+      setStaffList(staffResult.results)
+      setSchools(schoolsResult.results)
     } catch (loadError) {
       setLoadError(loadError instanceof Error ? loadError.message : "Unable to load staff.")
     } finally {
@@ -229,26 +243,39 @@ export default function StaffPage() {
                     <th className="px-3 py-2 font-medium">Employee ID</th>
                     <th className="px-3 py-2 font-medium">Type</th>
                     <th className="px-3 py-2 font-medium">Status</th>
-                    <th className="px-3 py-2 font-medium">School Board</th>
                     <th className="px-3 py-2 font-medium">School</th>
-                    <th className="px-3 py-2 font-medium">ID</th>
+                    <th className="px-3 py-2 font-medium">Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {staffList.map((item) => (
+                  {staffList.map((item) => {
+                    const itemId = item._id ?? item.id ?? ""
+
+                    return (
                     <tr
-                      key={item._id ?? item.id ?? `${item.schoolBoard}-${item.employeeId}`}
+                      key={itemId || `${item.schoolBoard}-${item.employeeId}`}
                       className="border-t"
                     >
                       <td className="px-3 py-2">{item.designation || "-"}</td>
                       <td className="px-3 py-2">{item.employeeId || "-"}</td>
                       <td className="px-3 py-2">{item.employmentType || "staff"}</td>
                       <td className="px-3 py-2">{item.isActive === false ? "inactive" : "active"}</td>
-                      <td className="px-3 py-2">{item.schoolBoard || "Independent school"}</td>
-                      <td className="px-3 py-2">{item.school || "-"}</td>
-                      <td className="px-3 py-2">{item._id ?? item.id ?? "-"}</td>
+                      <td className="px-3 py-2">{item.school ? (schoolNameMap.get(item.school) ?? "Unknown school") : "-"}</td>
+                      <td className="px-3 py-2">
+                        {itemId ? (
+                          <Link
+                            href={`/dashboard/staff/${itemId}`}
+                            className="rounded-md border px-2 py-1 text-xs hover:bg-muted"
+                          >
+                            View Profile
+                          </Link>
+                        ) : (
+                          "-"
+                        )}
+                      </td>
                     </tr>
-                  ))}
+                    )
+                  })}
                 </tbody>
               </table>
             </div>

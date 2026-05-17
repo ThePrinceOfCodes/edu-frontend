@@ -186,6 +186,7 @@ export interface Staff {
   _id?: string
   schoolBoard?: string | null
   school?: string | null
+  avatar?: string | null
   user?:
     | string
     | {
@@ -205,6 +206,7 @@ export interface CreateStaffInput {
   school?: string
   employeeId?: string
   designation?: string
+  avatar?: string
   employmentType?: "teacher" | "staff"
   isActive?: boolean
   user: {
@@ -214,6 +216,15 @@ export interface CreateStaffInput {
     phoneNumber?: string
     role?: "teacher" | "staff"
   }
+}
+
+export interface UpdateStaffInput {
+  school?: string
+  employeeId?: string
+  designation?: string
+  avatar?: string | null
+  employmentType?: "teacher" | "staff"
+  isActive?: boolean
 }
 
 export interface SchoolType {
@@ -510,6 +521,7 @@ export interface Student {
   firstName: string
   middleName?: string | null
   lastName: string
+  avatar?: string | null
   regNumber: string
   stateOfOrigin: string
   localGovernment: string
@@ -528,6 +540,7 @@ export interface CreateStudentInput {
   firstName: string
   middleName?: string
   lastName: string
+  avatar?: string
   regNumber: string
   stateOfOrigin: string
   localGovernment: string
@@ -536,6 +549,19 @@ export interface CreateStudentInput {
   guardianIds?: string[]
   school: string
   classId: string
+  status?: "active" | "inactive"
+}
+
+export interface UpdateStudentInput {
+  firstName?: string
+  middleName?: string | null
+  lastName?: string
+  avatar?: string | null
+  stateOfOrigin?: string
+  localGovernment?: string
+  gender?: "male" | "female"
+  dateOfBirth?: string
+  guardianIds?: string[]
   status?: "active" | "inactive"
 }
 

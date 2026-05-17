@@ -87,6 +87,15 @@ export default function StudentProfilePage() {
   const [guardians, setGuardians] = useState<GuardianAdminRecord[]>([])
   const [guardiansLoading, setGuardiansLoading] = useState(false)
 
+  const guardianLinkIds = useMemo(() => {
+    const linkIds = student?.guardianLinks?.map((item) => item.guardianId).filter(Boolean) || []
+    if (linkIds.length > 0) {
+      return linkIds
+    }
+
+    return student?.guardianIds || []
+  }, [student])
+
   const fullName = useMemo(() => {
     if (!student) {
       return "Student"
@@ -184,8 +193,9 @@ export default function StudentProfilePage() {
   }
 
   async function loadGuardians() {
-    if (!student?.guardianIds || student.guardianIds.length === 0) {
+    if (!student || guardianLinkIds.length === 0) {
       setGuardians([])
+      setGuardiansLoading(false)
       return
     }
 
@@ -193,9 +203,7 @@ export default function StudentProfilePage() {
     try {
       const response = await resourceService.getGuardians()
       const guardianList = response.results || []
-      const studentGuardians = guardianList.filter((g) =>
-        student.guardianIds?.includes(g.id)
-      )
+      const studentGuardians = guardianList.filter((g) => guardianLinkIds.includes(g.id))
       setGuardians(studentGuardians)
     } catch (error) {
       console.error("Failed to load guardians", error)
@@ -517,6 +525,53 @@ export default function StudentProfilePage() {
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Guardians</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {guardiansLoading ? (
+                <p className="text-sm text-muted-foreground">Loading guardians...</p>
+              ) : guardianLinkIds.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No guardians linked.</p>
+              ) : guardians.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Guardian details are unavailable.</p>
+              ) : (
+                <div className="space-y-3">
+                  {guardians.map((guardian) => {
+                    const link = guardian.linkedStudents.find((item) => item.id === (student?._id ?? student?.id))
+                    return (
+                      <div key={guardian.id} className="rounded-md border bg-muted/30 p-3">
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <div>
+                              <p className="text-sm font-medium">{guardian.name}</p>
+                              <p className="text-xs text-muted-foreground">{guardian.email}</p>
+                            </div>
+                            {link?.isPrimary ? (
+                              <span className="rounded-full border border-primary/20 bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
+                                Primary
+                              </span>
+                            ) : null}
+                          </div>
+                          <div className="flex flex-wrap gap-2 text-xs text-muted-foreground capitalize">
+                            <span className="rounded-full border bg-background px-2 py-1">{link?.relationshipType || "caretaker"}</span>
+                            {link?.relationshipType === "parent" && link.parentType ? (
+                              <span className="rounded-full border bg-background px-2 py-1">{link.parentType}</span>
+                            ) : null}
+                            {guardian.phoneNumber ? (
+                              <span className="rounded-full border bg-background px-2 py-1">{guardian.phoneNumber}</span>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </CardContent>

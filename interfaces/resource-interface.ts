@@ -367,6 +367,9 @@ export interface CreateGuardianInput {
   password: string
   phoneNumber?: string
   studentIds: string[]
+  relationshipType: "parent" | "caretaker"
+  parentType?: "father" | "mother" | null
+  isPrimary?: boolean
 }
 
 export interface GuardianLinkedStudent {
@@ -375,6 +378,16 @@ export interface GuardianLinkedStudent {
   regNumber: string
   schoolId?: string | null
   schoolName?: string | null
+  relationshipType?: "parent" | "caretaker" | null
+  parentType?: "father" | "mother" | null
+  isPrimary?: boolean
+}
+
+export interface StudentGuardianLink {
+  guardianId: string
+  relationshipType: "parent" | "caretaker"
+  parentType?: "father" | "mother" | null
+  isPrimary?: boolean
 }
 
 export interface GuardianAdminRecord {
@@ -544,6 +557,8 @@ export interface Student {
   classId?: string
   status?: "active" | "inactive"
   guardianIds?: string[]
+  guardianLinks?: StudentGuardianLink[]
+  primaryGuardianId?: string | null
   promotionHistory?: StudentHistory[]
   currentEnrollment?: StudentEnrollment | null
 }
@@ -559,6 +574,8 @@ export interface CreateStudentInput {
   gender: "male" | "female"
   dateOfBirth: string
   guardianIds?: string[]
+  guardianLinks?: StudentGuardianLink[]
+  primaryGuardianId?: string | null
   school: string
   classId: string
   status?: "active" | "inactive"
@@ -574,7 +591,16 @@ export interface UpdateStudentInput {
   gender?: "male" | "female"
   dateOfBirth?: string
   guardianIds?: string[]
+  guardianLinks?: StudentGuardianLink[]
+  primaryGuardianId?: string | null
   status?: "active" | "inactive"
+}
+
+export interface GuardianLinkInput {
+  studentIds: string[]
+  relationshipType: "parent" | "caretaker"
+  parentType?: "father" | "mother" | null
+  isPrimary?: boolean
 }
 
 export interface PromoteStudentInput {

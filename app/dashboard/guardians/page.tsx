@@ -1,6 +1,7 @@
 "use client"
 
 import { FormEvent, useEffect, useMemo, useState } from "react"
+import { Eye, EyeOff } from "lucide-react"
 
 import type { GuardianAdminRecord, School, Student } from "@/interfaces/resource-interface"
 import { authService } from "@/services/auth-service"
@@ -29,8 +30,12 @@ export default function GuardiansPage() {
   const [email, setEmail] = useState("")
   const [phoneNumber, setPhoneNumber] = useState("")
   const [password, setPassword] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
   const [studentSearch, setStudentSearch] = useState("")
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([])
+  const [createRelationshipType, setCreateRelationshipType] = useState<"parent" | "caretaker">("parent")
+  const [createParentType, setCreateParentType] = useState<"father" | "mother">("father")
+  const [createIsPrimary, setCreateIsPrimary] = useState(true)
 
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [submitSuccess, setSubmitSuccess] = useState<string | null>(null)
@@ -40,6 +45,9 @@ export default function GuardiansPage() {
   const [guardianSearch, setGuardianSearch] = useState("")
   const [selectedGuardianId, setSelectedGuardianId] = useState("")
   const [linkStudentIds, setLinkStudentIds] = useState<string[]>([])
+  const [linkRelationshipType, setLinkRelationshipType] = useState<"parent" | "caretaker">("parent")
+  const [linkParentType, setLinkParentType] = useState<"father" | "mother">("father")
+  const [linkIsPrimary, setLinkIsPrimary] = useState(true)
 
   const schoolNameMap = useMemo(() => {
     return new Map(schools.map((item) => [item._id ?? item.id ?? "", item.name]))
@@ -149,8 +157,12 @@ export default function GuardiansPage() {
     setEmail("")
     setPhoneNumber("")
     setPassword("")
+    setShowPassword(false)
     setStudentSearch("")
     setSelectedStudentIds([])
+    setCreateRelationshipType("parent")
+    setCreateParentType("father")
+    setCreateIsPrimary(true)
   }
 
   function toggleLinkStudent(studentId: string) {
@@ -172,6 +184,9 @@ export default function GuardiansPage() {
         password,
         phoneNumber: phoneNumber || undefined,
         studentIds: selectedStudentIds,
+        relationshipType: createRelationshipType,
+        parentType: createRelationshipType === "parent" ? createParentType : null,
+        isPrimary: createIsPrimary,
       })
 
       setSubmitSuccess(`Guardian created and linked to ${selectedStudentIds.length} student(s).`)
@@ -195,10 +210,18 @@ export default function GuardiansPage() {
     setActionGuardianId(selectedGuardianId)
 
     try {
-      await resourceService.linkStudentsToGuardian(selectedGuardianId, linkStudentIds)
+      await resourceService.linkStudentsToGuardian(selectedGuardianId, {
+        studentIds: linkStudentIds,
+        relationshipType: linkRelationshipType,
+        parentType: linkRelationshipType === "parent" ? linkParentType : null,
+        isPrimary: linkIsPrimary,
+      })
       setSubmitSuccess(`Linked ${linkStudentIds.length} student(s) to guardian.`)
       setLinkStudentIds([])
       setSelectedGuardianId("")
+      setLinkRelationshipType("parent")
+      setLinkParentType("father")
+      setLinkIsPrimary(true)
       await loadGuardians()
       await loadStudents()
     } catch (error) {
@@ -214,7 +237,7 @@ export default function GuardiansPage() {
     setActionGuardianId(guardianId)
 
     try {
-      await resourceService.unlinkStudentsFromGuardian(guardianId, [studentId])
+      await resourceService.unlinkStudentsFromGuardian(guardianId, { studentIds: [studentId] })
       setSubmitSuccess("Student unlinked from guardian.")
       await loadGuardians()
       await loadStudents()
@@ -292,14 +315,61 @@ export default function GuardiansPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="guardian-password">Password</Label>
-                  <Input
-                    id="guardian-password"
-                    type="password"
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    required
-                  />
+                  <div className="relative">
+                    <Input
+                      id="guardian-password"
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      className="pr-10"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((current) => !current)}
+                      className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-3">
+                <div className="space-y-2">
+                  <Label htmlFor="guardian-relationship-type">Relationship</Label>
+                  <select
+                    id="guardian-relationship-type"
+                    className="flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm"
+                    value={createRelationshipType}
+                    onChange={(event) => setCreateRelationshipType(event.target.value as "parent" | "caretaker")}
+                  >
+                    <option value="parent">Parent</option>
+                    <option value="caretaker">Caretaker</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="guardian-parent-type">Parent Type</Label>
+                  <select
+                    id="guardian-parent-type"
+                    className="flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm"
+                    value={createParentType}
+                    onChange={(event) => setCreateParentType(event.target.value as "father" | "mother")}
+                    disabled={createRelationshipType !== "parent"}
+                  >
+                    <option value="father">Father</option>
+                    <option value="mother">Mother</option>
+                  </select>
+                </div>
+                <label className="flex items-end gap-2 rounded-md border px-3 py-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={createIsPrimary}
+                    onChange={(event) => setCreateIsPrimary(event.target.checked)}
+                  />
+                  Primary guardian
+                </label>
               </div>
 
               <div className="space-y-2">
@@ -363,9 +433,14 @@ export default function GuardiansPage() {
                         " "
                       )
                       return (
-                        <p key={studentId} className="text-muted-foreground">
-                          {fullName} ({student.regNumber})
-                        </p>
+                        <div key={studentId} className="text-muted-foreground">
+                          <p>{fullName} ({student.regNumber})</p>
+                          <p className="text-xs capitalize">
+                            {createRelationshipType}
+                            {createRelationshipType === "parent" ? ` - ${createParentType}` : ""}
+                            {createIsPrimary ? " - Primary" : ""}
+                          </p>
+                        </div>
                       )
                     })}
                   </div>
@@ -448,6 +523,43 @@ export default function GuardiansPage() {
                 </div>
               </div>
             </div>
+
+            <div className="mt-3 grid gap-3 md:grid-cols-3">
+              <div className="space-y-2">
+                <Label htmlFor="link-relationship-type">Relationship</Label>
+                <select
+                  id="link-relationship-type"
+                  className="flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm"
+                  value={linkRelationshipType}
+                  onChange={(event) => setLinkRelationshipType(event.target.value as "parent" | "caretaker")}
+                >
+                  <option value="parent">Parent</option>
+                  <option value="caretaker">Caretaker</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="link-parent-type">Parent Type</Label>
+                <select
+                  id="link-parent-type"
+                  className="flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm"
+                  value={linkParentType}
+                  onChange={(event) => setLinkParentType(event.target.value as "father" | "mother")}
+                  disabled={linkRelationshipType !== "parent"}
+                >
+                  <option value="father">Father</option>
+                  <option value="mother">Mother</option>
+                </select>
+              </div>
+              <label className="flex items-end gap-2 rounded-md border px-3 py-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={linkIsPrimary}
+                  onChange={(event) => setLinkIsPrimary(event.target.checked)}
+                />
+                Primary guardian
+              </label>
+            </div>
+
             <div className="mt-3 flex justify-end">
               <Button
                 type="button"
@@ -489,9 +601,16 @@ export default function GuardiansPage() {
                             <p className="text-xs text-muted-foreground">No linked students</p>
                           ) : (
                             guardian.linkedStudents.map((student) => (
-                              <p key={`${guardian.id}-${student.id}`} className="text-xs text-muted-foreground">
-                                {student.fullName} ({student.regNumber})
-                              </p>
+                              <div key={`${guardian.id}-${student.id}`} className="text-xs text-muted-foreground">
+                                <p>
+                                  {student.fullName} ({student.regNumber})
+                                </p>
+                                <p className="capitalize">
+                                  {student.relationshipType || "caretaker"}
+                                  {student.relationshipType === "parent" && student.parentType ? ` - ${student.parentType}` : ""}
+                                  {student.isPrimary ? " - Primary" : ""}
+                                </p>
+                              </div>
                             ))
                           )}
                         </div>

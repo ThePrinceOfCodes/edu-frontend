@@ -27,6 +27,7 @@ import type {
   Message,
   MessageThread,
   PaginatedResponse,
+  GuardianLinkInput,
   PromoteStudentInput,
   QueueJob,
   QueueStatus,
@@ -248,21 +249,21 @@ export const resourceService = {
   getGuardians(params?: { q?: string }) {
     return request<GuardiansListResponse>(`/api/guardians${toQueryString(params)}`)
   },
-  linkStudentsToGuardian(guardianId: string, studentIds: string[]) {
+  linkStudentsToGuardian(guardianId: string, input: GuardianLinkInput) {
     return request<{ guardianId: string; linkedStudentIds: string[]; linkedStudentsCount: number }>(
       `/api/guardians/${guardianId}/link-students`,
       {
         method: "POST",
-        body: { studentIds },
+        body: input,
       }
     )
   },
-  unlinkStudentsFromGuardian(guardianId: string, studentIds: string[]) {
+  unlinkStudentsFromGuardian(guardianId: string, input: { studentIds: string[] }) {
     return request<{ guardianId: string; unlinkedStudentIds: string[]; unlinkedStudentsCount: number }>(
       `/api/guardians/${guardianId}/unlink-students`,
       {
         method: "POST",
-        body: { studentIds },
+        body: input,
       }
     )
   },

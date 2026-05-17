@@ -4,7 +4,7 @@ import Link from "next/link"
 import { useParams } from "next/navigation"
 import { FormEvent, useEffect, useMemo, useState } from "react"
 
-import type { Student, UpdateStudentInput } from "@/interfaces/resource-interface"
+import type { GuardianAdminRecord, ResultRecord, Student, UpdateStudentInput } from "@/interfaces/resource-interface"
 import { resourceService } from "@/services/resource-service"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -81,6 +81,12 @@ export default function StudentProfilePage() {
     sessionName?: string
   }>({})
 
+  const [results, setResults] = useState<ResultRecord[]>([])
+  const [resultsLoading, setResultsLoading] = useState(false)
+
+  const [guardians, setGuardians] = useState<GuardianAdminRecord[]>([])
+  const [guardiansLoading, setGuardiansLoading] = useState(false)
+
   const fullName = useMemo(() => {
     if (!student) {
       return "Student"
@@ -153,8 +159,50 @@ export default function StudentProfilePage() {
   useEffect(() => {
     if (student) {
       void loadEnrollmentData()
+      void loadResults()
+      void loadGuardians()
     }
   }, [student])
+
+  async function loadResults() {
+    if (!studentId) {
+      return
+    }
+
+    setResultsLoading(true)
+    try {
+      const response = await resourceService.getResults({
+        student: studentId,
+        limit: 10,
+      })
+      setResults(response.results || [])
+    } catch (error) {
+      console.error("Failed to load results", error)
+    } finally {
+      setResultsLoading(false)
+    }
+  }
+
+  async function loadGuardians() {
+    if (!student?.guardianIds || student.guardianIds.length === 0) {
+      setGuardians([])
+      return
+    }
+
+    setGuardiansLoading(true)
+    try {
+      const response = await resourceService.getGuardians()
+      const guardianList = response.results || []
+      const studentGuardians = guardianList.filter((g) =>
+        student.guardianIds?.includes(g.id)
+      )
+      setGuardians(studentGuardians)
+    } catch (error) {
+      console.error("Failed to load guardians", error)
+    } finally {
+      setGuardiansLoading(false)
+    }
+  }
 
   function openEditModal() {
     if (!student) {
@@ -397,6 +445,82 @@ export default function StudentProfilePage() {
               </CardContent>
             </Card>
           </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Results & Assessments</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {resultsLoading ? (
+                <p className="text-sm text-muted-foreground">Loading results...</p>
+              ) : results.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No results recorded yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {results.map((result) => (
+                    <div key={result._id || result.id} className="rounded-md border bg-muted/30 p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex-1">
+                          <p className="text-sm font-medium capitalize">{result.subject}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Test: {result.testScore} | Exam: {result.examScore}
+                          </p>
+                          {result.remark && <p className="text-xs text-muted-foreground italic">{result.remark}</p>}
+                        </div>
+                        <div className="text-right">
+                          <p className="text-lg font-semibold">{result.totalScore}</p>
+                          <p className="text-xs text-muted-foreground">Total</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Guardians</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {guardiansLoading ? (
+                <p className="text-sm text-muted-foreground">Loading guardians...</p>
+              ) : guardians.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No guardians linked.</p>
+              ) : (
+                <div className="space-y-3">
+                  {guardians.map((guardian) => (
+                    <div key={guardian.id} className="rounded-md border bg-muted/30 p-3">
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium">{guardian.name}</p>
+                        <p className="text-xs text-muted-foreground">{guardian.email}</p>
+                        {guardian.phoneNumber && (
+                          <p className="text-xs text-muted-foreground">{guardian.phoneNumber}</p>
+                        )}
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`inline-block rounded-full px-2 py-1 text-xs font-medium ${
+                              guardian.status === "active"
+                                ? "border border-emerald-200 bg-emerald-100 text-emerald-700"
+                                : "border border-rose-200 bg-rose-100 text-rose-700"
+                            }`}
+                          >
+                            {guardian.status === "active" ? "Active" : "Disabled"}
+                          </span>
+                          {guardian.linkedStudentsCount > 0 && (
+                            <span className="text-xs text-muted-foreground">
+                              {guardian.linkedStudentsCount} linked student{guardian.linkedStudentsCount > 1 ? "s" : ""}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       ) : null}
     </div>

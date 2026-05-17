@@ -108,22 +108,28 @@ export default function AttendancePage() {
   >("all")
 
   async function resolveActiveTermId(schoolId: string) {
-    try {
-      const activeTerm = await resourceService.getActiveTerm({ school: schoolId })
-      return activeTerm._id ?? activeTerm.id ?? ""
-    } catch {
-      const authUser = authService.getStoredUser()
-      const fallbackTerms = await resourceService.getTerms({
-        schoolBoard: authUser?.schoolBoardId ?? undefined,
-        school: authUser?.schoolId ?? undefined,
-        isActive: true,
-        limit: 1,
-        page: 1,
-      })
+    const schoolScopedTerms = await resourceService.getTerms({
+      school: schoolId,
+      isActive: true,
+      limit: 1,
+      page: 1,
+    })
 
-      const term = fallbackTerms.results[0]
-      return term?._id ?? term?.id ?? ""
+    const schoolScopedTerm = schoolScopedTerms.results[0]
+    if (schoolScopedTerm) {
+      return schoolScopedTerm._id ?? schoolScopedTerm.id ?? ""
     }
+
+    const authUser = authService.getStoredUser()
+    const fallbackTerms = await resourceService.getTerms({
+      schoolBoard: authUser?.schoolBoardId ?? undefined,
+      isActive: true,
+      limit: 1,
+      page: 1,
+    })
+
+    const term = fallbackTerms.results[0]
+    return term?._id ?? term?.id ?? ""
   }
 
   useEffect(() => {

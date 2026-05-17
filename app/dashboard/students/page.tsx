@@ -118,7 +118,7 @@ export default function StudentsPage() {
       setSchools(schoolsResult.results)
       setAcademicSessions(sessionsResult.results)
 
-      const schoolIds = schoolsResult.results.map((item) => item._id ?? item.id ?? "").filter(Boolean)
+      const schoolIds = schoolsResult.results.map((item: School) => item._id ?? item.id ?? "").filter(Boolean)
 
       if (schoolIds.length === 0) {
         setClasses([])
@@ -127,14 +127,14 @@ export default function StudentsPage() {
 
       if (isSchoolBoardAdmin) {
         const classResults = await Promise.all(
-          schoolIds.map((schoolIdValue) =>
+          schoolIds.map((schoolIdValue: string) =>
             resourceService.getClasses({ schoolId: schoolIdValue, limit: 500, page: 1 })
           )
         )
 
         const uniqueClasses = new Map<string, Class>()
-        classResults.forEach((result) => {
-          result.results.forEach((classItem) => {
+        classResults.forEach((result: { results: Class[] }) => {
+          result.results.forEach((classItem: Class) => {
             uniqueClasses.set(classItem._id ?? classItem.id ?? classItem.code, classItem)
           })
         })

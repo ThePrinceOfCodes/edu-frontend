@@ -45,7 +45,7 @@ export default function ClassesPage() {
 
       // Fetch students per class in parallel — backend auto-scopes to the user's school/board
       const perClassData = await Promise.all(
-        classesResult.results.map(async (cls) => {
+        classesResult.results.map(async (cls: Class) => {
           const classId = cls._id ?? cls.id ?? ""
           try {
             const res = await resourceService.getStudents({ classId, limit: 1000 })
@@ -62,8 +62,8 @@ export default function ClassesPage() {
 
       for (const { classId, total, students } of perClassData) {
         if (!classId) continue
-        const boys = students.filter((s) => s.gender === "male").length
-        const girls = students.filter((s) => s.gender === "female").length
+        const boys = students.filter((s: Student) => s.gender === "male").length
+        const girls = students.filter((s: Student) => s.gender === "female").length
         statsMap[classId] = { total, boys, girls, attendanceAvg: null }
         for (const s of students) {
           const sid = s._id ?? s.id ?? ""

@@ -1,5 +1,7 @@
 import type {
   AcademicSession,
+  AttendantExtraction,
+  AttendanceExtractionExportFormat,
   AttendanceSummary,
   BulkCreateSchoolsInput,
   BulkCreateStudentsInput,
@@ -26,6 +28,8 @@ import type {
   MessageThread,
   PaginatedResponse,
   PromoteStudentInput,
+  QueueJob,
+  QueueStatus,
   ResultRecord,
   School,
   SchoolBoard,
@@ -429,5 +433,56 @@ export const resourceService = {
     return request<Record<string, never>>(`/api/events/${eventId}`, {
       method: "DELETE",
     })
+  },
+
+  getExtractions(params?: { status?: string; limit?: number; page?: number; sortBy?: string }) {
+    return request<PaginatedResponse<AttendantExtraction>>(
+      `/api/attendant-extractions${toQueryString(params)}`
+    )
+  },
+  getPendingReviewExtractions(params?: { limit?: number; page?: number; sortBy?: string }) {
+    return request<PaginatedResponse<AttendantExtraction>>(
+      `/api/attendant-extractions/pending-review${toQueryString(params)}`
+    )
+  },
+  getExtractionById(id: string) {
+    return request<AttendantExtraction>(`/api/attendant-extractions/${id}`)
+  },
+  correctExtraction(id: string, input: Record<string, any>) {
+    return request<AttendantExtraction>(`/api/attendant-extractions/${id}/correct`, {
+      method: "PATCH",
+      body: input,
+    })
+  },
+  approveExtraction(id: string) {
+    return request<AttendantExtraction>(`/api/attendant-extractions/${id}/approve`, {
+      method: "POST",
+    })
+  },
+  exportExtraction(id: string, format: AttendanceExtractionExportFormat) {
+    return request<string>(`/api/attendant-extractions/${id}/export${toQueryString({ format })}`)
+  },
+  getQueueStatus() {
+    return request<QueueStatus>(`/api/attendant-extractions/queue/status`)
+  },
+  pauseQueue() {
+    return request<QueueStatus>(`/api/attendant-extractions/queue/pause`, { method: 'POST' })
+  },
+  resumeQueue() {
+    return request<QueueStatus>(`/api/attendant-extractions/queue/resume`, { method: 'POST' })
+  },
+  cleanQueue(age?: number) {
+    return request<{ cleaned: { completed: number; failed: number } }>(
+      `/api/attendant-extractions/queue/clean`,
+      { method: 'POST', body: age ? { age } : undefined }
+    )
+  },
+  retryFailedJobs() {
+    return request<{ retriedCount: number }>(`/api/attendant-extractions/queue/retry-failed`, { method: 'POST' })
+  },
+  getQueueJobs(type: 'waiting' | 'active' | 'failed', start?: number, end?: number) {
+    return request<{ jobs: QueueJob[] }>(
+      `/api/attendant-extractions/queue/jobs${toQueryString({ type, start, end })}`
+    )
   },
 }

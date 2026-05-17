@@ -17,6 +17,8 @@ import {
   User,
   Settings,
   Users,
+  ClipboardCheck,
+  Settings2,
 } from "lucide-react"
 import type { AuthUser } from "@/interfaces/auth-interface"
 import { authService } from "@/services/auth-service"
@@ -90,6 +92,18 @@ const navItems = [
     url: "/dashboard/guardian",
     icon: Users,
     showForGuardian: true,
+  },
+  {
+    title: "Extraction Review",
+    url: "/dashboard/extractions",
+    icon: ClipboardCheck,
+    allowedRoles: ["super-admin", "admin"],
+  },
+  {
+    title: "Queue Management",
+    url: "/dashboard/extractions/queue",
+    icon: Settings2,
+    allowedRoles: ["super-admin", "admin"],
   },
   {
     title: "Schools",

@@ -611,6 +611,72 @@ export interface AttendanceSummary {
   rows: AttendanceSummaryRow[]
 }
 
+export type AttendantExtractionStatus =
+  | "uploaded"
+  | "queued"
+  | "processing"
+  | "ocr_completed"
+  | "llm_extracted"
+  | "validation_failed"
+  | "pending_review"
+  | "corrected"
+  | "approved"
+  | "exported"
+  | "failed"
+
+export type AttendanceExtractionExportFormat = "jsonl" | "csv" | "docai"
+
+export interface ExtractionApprovalMeta {
+  approvedBy: string
+  approvedAt: string
+}
+
+export interface ExtractionProcessingMeta {
+  stage?: string
+  retryCount?: number
+  promptVersion?: string
+  ocrSummary?: Record<string, any>
+  lastRateLimitError?: string
+  [key: string]: any
+}
+
+export interface AttendantExtraction {
+  id?: string
+  _id?: string
+  createdBy?: string | null
+  schoolId: string
+  termId: string
+  academicSessionId: string
+  startDate: string
+  endDate: string
+  imagePath?: string
+  originalImagePath: string
+  mimeType: string
+  preprocessedImagePath?: string
+  rawOcrJson?: Record<string, any>
+  rawText?: string
+  parsedJson?: Record<string, any>
+  documentAiRawOutput?: Record<string, any>
+  documentAiText?: string
+  documentAiLayoutSummary?: Record<string, any>
+  llmRawResponse?: string
+  llmExtractedOutput?: Record<string, any>
+  humanCorrectedOutput?: Record<string, any> | null
+  validationErrors?: string[]
+  provider?: string
+  model?: string
+  approvalMeta?: ExtractionApprovalMeta | null
+  exportedAt?: string
+  status: AttendantExtractionStatus
+  error?: string
+  processingMeta?: ExtractionProcessingMeta
+  createdAttendanceIds?: string[]
+  pendingReviewIds?: string[]
+  createdAt?: string
+  updatedAt?: string
+  imageUrl?: string | null
+}
+
 export interface MessageThread {
   id?: string
   _id?: string
@@ -621,6 +687,29 @@ export interface MessageThread {
   isBroadcast?: boolean
   createdAt?: string
   updatedAt?: string
+}
+
+export interface QueueStatus {
+  queue: string
+  paused: boolean
+  counts: {
+    waiting: number
+    active: number
+    completed: number
+    failed: number
+    delayed: number
+  }
+}
+
+export interface QueueJob {
+  id?: string
+  name: string
+  data: Record<string, any>
+  progress: number
+  attemptsMade: number
+  finishedOn?: number
+  failedReason?: string
+  timestamp?: number
 }
 
 export interface Message {

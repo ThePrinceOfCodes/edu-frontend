@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 
-import type { AttendanceSummary, Class, School } from "@/interfaces/resource-interface"
+import type { AttendanceSummary, Class, School, Student } from "@/interfaces/resource-interface"
 import { authService } from "@/services/auth-service"
 import { resourceService } from "@/services/resource-service"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -188,7 +188,7 @@ export default function AttendancePage() {
                 page: 1,
               })
 
-              const genderMap = studentResult.results.reduce<Record<string, "male" | "female">>((acc, student) => {
+const genderMap = studentResult.results.reduce<Record<string, "male" | "female">>((acc: Record<string, "male" | "female">, student: Student) => {
                 const studentId = student._id ?? student.id
                 if (!studentId || (student.gender !== "male" && student.gender !== "female")) {
                   return acc
@@ -256,11 +256,11 @@ export default function AttendancePage() {
 
         const schoolClassIds = new Set((schoolDetail.classes ?? []).filter(Boolean))
         const nextClasses = classResult.results
-          .filter((classItem) => schoolClassIds.has(classItem._id ?? classItem.id ?? ""))
-          .sort((left, right) => left.code.localeCompare(right.code))
+          .filter((classItem: Class) => schoolClassIds.has(classItem._id ?? classItem.id ?? ""))
+          .sort((left: Class, right: Class) => left.code.localeCompare(right.code))
 
         setSchoolClasses(nextClasses)
-        const genderMap = studentResult.results.reduce<Record<string, "male" | "female">>((acc, student) => {
+        const genderMap = studentResult.results.reduce<Record<string, "male" | "female">>((acc: Record<string, "male" | "female">, student: Student) => {
           const studentId = student._id ?? student.id
           if (!studentId || (student.gender !== "male" && student.gender !== "female")) {
             return acc
@@ -271,7 +271,7 @@ export default function AttendancePage() {
         }, {})
         setSelectedSchoolGenderMap(genderMap)
         setSelectedClassId((current) =>
-          nextClasses.some((classItem) => (classItem._id ?? classItem.id) === current) ? current : ""
+          nextClasses.some((classItem: Class) => (classItem._id ?? classItem.id) === current) ? current : ""
         )
       } catch (error) {
         if (!cancelled) {

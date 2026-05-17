@@ -1,7 +1,8 @@
 "use client"
 
-import { FormEvent, useEffect, useMemo, useState } from "react"
-import { Eye, EyeOff } from "lucide-react"
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react"
+import { ChevronDown, Eye, EyeOff } from "lucide-react"
+import Link from "next/link"
 
 import type { GuardianAdminRecord, School, Student } from "@/interfaces/resource-interface"
 import { authService } from "@/services/auth-service"
@@ -13,6 +14,7 @@ import { Label } from "@/components/ui/label"
 
 export default function GuardiansPage() {
   const authUser = useMemo(() => authService.getStoredUser(), [])
+  const actionsMenuRef = useRef<HTMLDivElement | null>(null)
 
   const canManageGuardians =
     authUser?.accountType === "internal" ||
@@ -48,6 +50,9 @@ export default function GuardiansPage() {
   const [linkRelationshipType, setLinkRelationshipType] = useState<"parent" | "caretaker">("parent")
   const [linkParentType, setLinkParentType] = useState<"father" | "mother">("father")
   const [linkIsPrimary, setLinkIsPrimary] = useState(true)
+  const [showAddStudentsForm, setShowAddStudentsForm] = useState(false)
+  const [actionsMenuOpen, setActionsMenuOpen] = useState(false)
+  const [activePanel, setActivePanel] = useState<"create" | "manage" | null>(null)
 
   const schoolNameMap = useMemo(() => {
     return new Map(schools.map((item) => [item._id ?? item.id ?? "", item.name]))
@@ -72,6 +77,22 @@ export default function GuardiansPage() {
     const selectedSet = new Set(selectedStudentIds)
     return students.filter((item) => selectedSet.has(item._id ?? item.id ?? ""))
   }, [selectedStudentIds, students])
+
+  const selectedGuardian = useMemo(
+    () => guardians.find((item) => item.id === selectedGuardianId) || null,
+    [guardians, selectedGuardianId]
+  )
+
+  function getStudentInitials(fullName: string) {
+    const initials = fullName
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() || "")
+      .join("")
+
+    return initials || "?"
+  }
 
   async function loadMetadata() {
     setLoadError(null)
@@ -144,6 +165,40 @@ export default function GuardiansPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [guardianSearch, canManageGuardians])
 
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (!actionsMenuOpen) {
+        return
+      }
+
+      const target = event.target as Node | null
+      if (target && actionsMenuRef.current?.contains(target)) {
+        return
+      }
+
+      setActionsMenuOpen(false)
+    }
+
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setActionsMenuOpen(false)
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside)
+    document.addEventListener("keydown", handleEscape)
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+      document.removeEventListener("keydown", handleEscape)
+    }
+  }, [actionsMenuOpen])
+
+  useEffect(() => {
+    setShowAddStudentsForm(false)
+    setLinkStudentIds([])
+  }, [selectedGuardianId])
+
   function toggleStudent(studentId: string) {
     setSelectedStudentIds((current) =>
       current.includes(studentId)
@@ -169,6 +224,31 @@ export default function GuardiansPage() {
     setLinkStudentIds((current) =>
       current.includes(studentId) ? current.filter((item) => item !== studentId) : [...current, studentId]
     )
+  }
+
+  function navigateToSection(section: "list" | "create" | "manage", guardianId?: string) {
+    setActivePanel(section === "list" ? null : section)
+    if (guardianId) {
+      setSelectedGuardianId(guardianId)
+    }
+
+    setActionsMenuOpen(false)
+
+    window.setTimeout(() => {
+      if (section === "list") {
+        window.scrollTo({ top: 0, behavior: "smooth" })
+        return
+      }
+
+      document.getElementById(section === "create" ? "create-guardian" : "manage-guardians")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      })
+    }, 0)
+  }
+
+  function openManageGuardian(guardianId: string) {
+    navigateToSection("manage", guardianId)
   }
 
   async function handleCreateGuardian(event: FormEvent<HTMLFormElement>) {
@@ -268,14 +348,133 @@ export default function GuardiansPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-lg font-semibold">Guardians</h2>
-        <p className="text-sm text-muted-foreground">
-          Create guardian accounts and link them to one or more students.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold">Guardians</h2>
+          <p className="text-sm text-muted-foreground">
+            Browse guardians first, then jump to create or manage from the actions menu.
+          </p>
+        </div>
+        <div className="relative ml-auto" ref={actionsMenuRef}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setActionsMenuOpen((current) => !current)}
+            aria-expanded={actionsMenuOpen}
+            aria-haspopup="menu"
+            className="gap-2"
+          >
+            Guardian Actions
+            <ChevronDown className="size-4" />
+          </Button>
+          {actionsMenuOpen ? (
+            <div className="absolute right-0 top-full z-20 mt-2 w-56 rounded-md border bg-background p-1 shadow-md">
+              <button
+                type="button"
+                className="flex w-full items-center rounded-md px-3 py-2 text-left text-sm hover:bg-muted"
+                onClick={() => navigateToSection("list")}
+              >
+                Guardians List
+              </button>
+              <button
+                type="button"
+                className="flex w-full items-center rounded-md px-3 py-2 text-left text-sm hover:bg-muted"
+                onClick={() => navigateToSection("create")}
+              >
+                Create Guardian
+              </button>
+              <button
+                type="button"
+                className="flex w-full items-center rounded-md px-3 py-2 text-left text-sm hover:bg-muted"
+                onClick={() => navigateToSection("manage")}
+              >
+                Manage Guardians
+              </button>
+            </div>
+          ) : null}
+        </div>
       </div>
 
-      <Card>
+      {activePanel === null ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Guardians List</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {guardiansLoading ? <p className="text-sm text-muted-foreground">Loading guardians...</p> : null}
+            {!guardiansLoading && guardians.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No guardians found.</p>
+            ) : null}
+
+            {!guardiansLoading && guardians.length > 0 ? (
+              <div className="overflow-x-auto rounded-md border">
+                <table className="min-w-full text-left text-sm">
+                  <thead className="bg-muted/40 text-muted-foreground">
+                    <tr>
+                      <th className="px-3 py-2 font-medium">Name</th>
+                      <th className="px-3 py-2 font-medium">Email</th>
+                      <th className="px-3 py-2 font-medium">Phone</th>
+                      <th className="px-3 py-2 font-medium">Linked Students</th>
+                      <th className="px-3 py-2 font-medium">Manage</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {guardians.map((guardian) => (
+                      <tr key={guardian.id} className="border-t align-top">
+                        <td className="px-3 py-2">{guardian.name}</td>
+                        <td className="px-3 py-2">{guardian.email}</td>
+                        <td className="px-3 py-2">{guardian.phoneNumber || "-"}</td>
+                        <td className="px-3 py-2">
+                          {guardian.linkedStudents.length === 0 ? (
+                            <p className="text-xs text-muted-foreground">No linked students</p>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <div className="flex items-center -space-x-2">
+                                {guardian.linkedStudents
+                                  .slice(0, guardian.linkedStudents.length > 5 ? 4 : 5)
+                                  .map((student) => (
+                                    <div
+                                      key={`${guardian.id}-${student.id}`}
+                                      className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-background bg-muted text-[11px] font-semibold text-foreground shadow-sm"
+                                      title={`${student.fullName} (${student.regNumber})`}
+                                      aria-label={`${student.fullName} (${student.regNumber})`}
+                                    >
+                                      {getStudentInitials(student.fullName)}
+                                    </div>
+                                  ))}
+                                {guardian.linkedStudents.length > 5 ? (
+                                  <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-background bg-foreground text-[11px] font-semibold text-background shadow-sm">
+                                    +{guardian.linkedStudents.length - 4}
+                                  </div>
+                                ) : null}
+                              </div>
+                              <p className="text-xs text-muted-foreground">{guardian.linkedStudentsCount} linked</p>
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-3 py-2">
+                          <Button
+                            type="button"
+                            size="xs"
+                            variant="outline"
+                            className="w-full justify-start"
+                            onClick={() => openManageGuardian(guardian.id)}
+                          >
+                            Manage
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {activePanel === "create" ? (
+        <Card id="create-guardian">
         <CardHeader>
           <CardTitle>Create Guardian</CardTitle>
         </CardHeader>
@@ -458,9 +657,11 @@ export default function GuardiansPage() {
             </form>
           ) : null}
         </CardContent>
-      </Card>
+        </Card>
+      ) : null}
 
-      <Card>
+      {activePanel === "manage" ? (
+        <Card id="manage-guardians">
         <CardHeader>
           <CardTitle>Manage Guardians</CardTitle>
         </CardHeader>
@@ -477,173 +678,146 @@ export default function GuardiansPage() {
           </div>
 
           <div className="rounded-md border p-3">
-            <p className="mb-2 text-sm font-medium">Quick Reassign / Add Links</p>
-            <div className="grid gap-3 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="target-guardian">Target Guardian</Label>
-                <select
-                  id="target-guardian"
-                  className="flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm"
-                  value={selectedGuardianId}
-                  onChange={(event) => setSelectedGuardianId(event.target.value)}
-                >
-                  <option value="">Select guardian</option>
-                  {guardians.map((guardian) => (
-                    <option key={guardian.id} value={guardian.id}>
-                      {guardian.name} ({guardian.email})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-2">
-                <Label>Students to Link ({linkStudentIds.length})</Label>
-                <div className="max-h-36 space-y-2 overflow-auto rounded-md border p-2">
-                  {availableStudentsForLinking.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">No available students for selected guardian.</p>
-                  ) : (
-                    availableStudentsForLinking.map((student) => {
-                      const studentId = student._id ?? student.id ?? ""
-                      if (!studentId) return null
-                      const fullName = `${student.firstName} ${student.middleName || ""} ${student.lastName}`.replace(
-                        /\s+/g,
-                        " "
-                      )
-                      return (
-                        <label key={studentId} className="flex items-center gap-2 text-sm">
-                          <input
-                            type="checkbox"
-                            checked={linkStudentIds.includes(studentId)}
-                            onChange={() => toggleLinkStudent(studentId)}
-                          />
-                          {fullName} ({student.regNumber})
-                        </label>
-                      )
-                    })
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-3 grid gap-3 md:grid-cols-3">
-              <div className="space-y-2">
-                <Label htmlFor="link-relationship-type">Relationship</Label>
-                <select
-                  id="link-relationship-type"
-                  className="flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm"
-                  value={linkRelationshipType}
-                  onChange={(event) => setLinkRelationshipType(event.target.value as "parent" | "caretaker")}
-                >
-                  <option value="parent">Parent</option>
-                  <option value="caretaker">Caretaker</option>
-                </select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="link-parent-type">Parent Type</Label>
-                <select
-                  id="link-parent-type"
-                  className="flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm"
-                  value={linkParentType}
-                  onChange={(event) => setLinkParentType(event.target.value as "father" | "mother")}
-                  disabled={linkRelationshipType !== "parent"}
-                >
-                  <option value="father">Father</option>
-                  <option value="mother">Mother</option>
-                </select>
-              </div>
-              <label className="flex items-end gap-2 rounded-md border px-3 py-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={linkIsPrimary}
-                  onChange={(event) => setLinkIsPrimary(event.target.checked)}
-                />
-                Primary guardian
-              </label>
-            </div>
-
-            <div className="mt-3 flex justify-end">
-              <Button
-                type="button"
-                onClick={() => void handleLinkStudentsToGuardian()}
-                disabled={!selectedGuardianId || linkStudentIds.length === 0 || actionGuardianId === selectedGuardianId}
+            <p className="mb-2 text-sm font-medium">Guardian Details</p>
+            <div className="space-y-2">
+              <Label htmlFor="target-guardian">Target Guardian</Label>
+              <select
+                id="target-guardian"
+                className="flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm"
+                value={selectedGuardianId}
+                onChange={(event) => setSelectedGuardianId(event.target.value)}
               >
-                {actionGuardianId === selectedGuardianId ? "Saving..." : "Link Selected Students"}
-              </Button>
+                <option value="">Select guardian</option>
+                {guardians.map((guardian) => (
+                  <option key={guardian.id} value={guardian.id}>
+                    {guardian.name} ({guardian.email})
+                  </option>
+                ))}
+              </select>
             </div>
+
+            {selectedGuardian ? (
+              <div className="mt-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium">Linked Students ({selectedGuardian.linkedStudents.length})</p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowAddStudentsForm((current) => !current)}
+                  >
+                    {showAddStudentsForm ? "Hide Add Students" : "Add More Students"}
+                  </Button>
+                </div>
+
+                {selectedGuardian.linkedStudents.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No linked students yet.</p>
+                ) : (
+                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {selectedGuardian.linkedStudents.map((student) => (
+                      <Link
+                        key={`${selectedGuardian.id}-${student.id}`}
+                        href={`/dashboard/students/${student.id}`}
+                        className="flex items-center gap-2 rounded-md border p-2 text-sm transition-colors hover:bg-muted/50"
+                        title={`Open profile for ${student.fullName}`}
+                      >
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-muted text-xs font-semibold">
+                          {getStudentInitials(student.fullName)}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate font-medium">{student.fullName}</p>
+                          <p className="truncate text-xs text-muted-foreground">{student.regNumber}</p>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+
+                {showAddStudentsForm ? (
+                  <div className="space-y-3 rounded-md border p-3">
+                    <div className="space-y-2">
+                      <Label>Students to Link ({linkStudentIds.length})</Label>
+                      <div className="max-h-36 space-y-2 overflow-auto rounded-md border p-2">
+                        {availableStudentsForLinking.length === 0 ? (
+                          <p className="text-xs text-muted-foreground">No available students for selected guardian.</p>
+                        ) : (
+                          availableStudentsForLinking.map((student) => {
+                            const studentId = student._id ?? student.id ?? ""
+                            if (!studentId) return null
+                            const fullName = `${student.firstName} ${student.middleName || ""} ${student.lastName}`.replace(
+                              /\s+/g,
+                              " "
+                            )
+                            return (
+                              <label key={studentId} className="flex items-center gap-2 text-sm">
+                                <input
+                                  type="checkbox"
+                                  checked={linkStudentIds.includes(studentId)}
+                                  onChange={() => toggleLinkStudent(studentId)}
+                                />
+                                {fullName} ({student.regNumber})
+                              </label>
+                            )
+                          })
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid gap-3 md:grid-cols-3">
+                      <div className="space-y-2">
+                        <Label htmlFor="link-relationship-type">Relationship</Label>
+                        <select
+                          id="link-relationship-type"
+                          className="flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm"
+                          value={linkRelationshipType}
+                          onChange={(event) => setLinkRelationshipType(event.target.value as "parent" | "caretaker")}
+                        >
+                          <option value="parent">Parent</option>
+                          <option value="caretaker">Caretaker</option>
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="link-parent-type">Parent Type</Label>
+                        <select
+                          id="link-parent-type"
+                          className="flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm"
+                          value={linkParentType}
+                          onChange={(event) => setLinkParentType(event.target.value as "father" | "mother")}
+                          disabled={linkRelationshipType !== "parent"}
+                        >
+                          <option value="father">Father</option>
+                          <option value="mother">Mother</option>
+                        </select>
+                      </div>
+                      <label className="flex items-end gap-2 rounded-md border px-3 py-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={linkIsPrimary}
+                          onChange={(event) => setLinkIsPrimary(event.target.checked)}
+                        />
+                        Primary guardian
+                      </label>
+                    </div>
+
+                    <div className="flex justify-end">
+                      <Button
+                        type="button"
+                        onClick={() => void handleLinkStudentsToGuardian()}
+                        disabled={!selectedGuardianId || linkStudentIds.length === 0 || actionGuardianId === selectedGuardianId}
+                      >
+                        {actionGuardianId === selectedGuardianId ? "Saving..." : "Link Selected Students"}
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <p className="mt-3 text-sm text-muted-foreground">Select a guardian to view and manage linked students.</p>
+            )}
           </div>
-
-          {guardiansLoading ? <p className="text-sm text-muted-foreground">Loading guardians...</p> : null}
-          {!guardiansLoading && guardians.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No guardians found.</p>
-          ) : null}
-
-          {!guardiansLoading && guardians.length > 0 ? (
-            <div className="overflow-x-auto rounded-md border">
-              <table className="min-w-full text-left text-sm">
-                <thead className="bg-muted/40 text-muted-foreground">
-                  <tr>
-                    <th className="px-3 py-2 font-medium">Name</th>
-                    <th className="px-3 py-2 font-medium">Email</th>
-                    <th className="px-3 py-2 font-medium">Phone</th>
-                    <th className="px-3 py-2 font-medium">Linked Students</th>
-                    <th className="px-3 py-2 font-medium">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {guardians.map((guardian) => (
-                    <tr key={guardian.id} className="border-t align-top">
-                      <td className="px-3 py-2">{guardian.name}</td>
-                      <td className="px-3 py-2">{guardian.email}</td>
-                      <td className="px-3 py-2">{guardian.phoneNumber || "-"}</td>
-                      <td className="px-3 py-2">
-                        <p className="mb-1 font-medium">{guardian.linkedStudentsCount}</p>
-                        <div className="space-y-1">
-                          {guardian.linkedStudents.length === 0 ? (
-                            <p className="text-xs text-muted-foreground">No linked students</p>
-                          ) : (
-                            guardian.linkedStudents.map((student) => (
-                              <div key={`${guardian.id}-${student.id}`} className="text-xs text-muted-foreground">
-                                <p>
-                                  {student.fullName} ({student.regNumber})
-                                </p>
-                                <p className="capitalize">
-                                  {student.relationshipType || "caretaker"}
-                                  {student.relationshipType === "parent" && student.parentType ? ` - ${student.parentType}` : ""}
-                                  {student.isPrimary ? " - Primary" : ""}
-                                </p>
-                              </div>
-                            ))
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-3 py-2">
-                        <div className="space-y-2">
-                          {guardian.linkedStudents.length === 0 ? (
-                            <p className="text-xs text-muted-foreground">No student to unlink</p>
-                          ) : (
-                            guardian.linkedStudents.map((student) => (
-                              <Button
-                                key={`${guardian.id}-${student.id}-unlink`}
-                                type="button"
-                                size="xs"
-                                variant="outline"
-                                className="w-full justify-start"
-                                disabled={actionGuardianId === guardian.id}
-                                onClick={() => void handleUnlinkStudent(guardian.id, student.id)}
-                              >
-                                {actionGuardianId === guardian.id ? "Updating..." : `Unlink ${student.fullName}`}
-                              </Button>
-                            ))
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : null}
         </CardContent>
-      </Card>
+        </Card>
+      ) : null}
     </div>
   )
 }

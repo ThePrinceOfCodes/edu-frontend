@@ -75,6 +75,12 @@ export default function StudentProfilePage() {
   const [editDateOfBirth, setEditDateOfBirth] = useState("")
   const [editStatus, setEditStatus] = useState<"active" | "inactive">("active")
 
+  const [enrollmentData, setEnrollmentData] = useState<{
+    schoolName?: string
+    className?: string
+    sessionName?: string
+  }>({})
+
   const fullName = useMemo(() => {
     if (!student) {
       return "Student"
@@ -107,9 +113,48 @@ export default function StudentProfilePage() {
     }
   }
 
+  async function loadEnrollmentData() {
+    if (!student?.currentEnrollment) {
+      setEnrollmentData({})
+      return
+    }
+
+    try {
+      const [schools, classes, sessions] = await Promise.all([
+        resourceService.getSchools(),
+        resourceService.getClasses(),
+        resourceService.getAcademicSessions(),
+      ])
+
+      const schoolName = schools.results?.find(
+        (s) => s.id === student.currentEnrollment?.school || s._id === student.currentEnrollment?.school
+      )?.name
+
+      const className = classes.results?.find(
+        (c) => c.id === student.currentEnrollment?.classId || c._id === student.currentEnrollment?.classId
+      )?.name
+
+      const sessionName = sessions.results?.find(
+        (s) =>
+          s.id === student.currentEnrollment?.academicSessionId ||
+          s._id === student.currentEnrollment?.academicSessionId
+      )?.name
+
+      setEnrollmentData({ schoolName, className, sessionName })
+    } catch (error) {
+      console.error("Failed to load enrollment data", error)
+    }
+  }
+
   useEffect(() => {
     void loadStudentProfile()
   }, [studentId])
+
+  useEffect(() => {
+    if (student) {
+      void loadEnrollmentData()
+    }
+  }, [student])
 
   function openEditModal() {
     if (!student) {
@@ -326,7 +371,6 @@ export default function StudentProfilePage() {
                   <KeyValueItem label="LGA" value={student.localGovernment} />
                 </div>
               </div>
-            </div>
             </CardContent>
           </Card>
 
@@ -339,7 +383,6 @@ export default function StudentProfilePage() {
                 <KeyValueItem label="Date of Birth" value={new Date(student.dateOfBirth).toLocaleDateString()} />
                 <KeyValueItem label="Status" value={student.status || "active"} />
                 <KeyValueItem label="Avatar Source" value={student.avatar ? "Custom URL" : "Placeholder"} />
-                <KeyValueItem label="Student ID" value={student._id ?? student.id ?? "-"} />
               </CardContent>
             </Card>
 
@@ -348,16 +391,9 @@ export default function StudentProfilePage() {
                 <CardTitle className="text-base">Current Enrollment</CardTitle>
               </CardHeader>
               <CardContent className="grid gap-3 sm:grid-cols-2">
-                <KeyValueItem label="School ID" value={student.currentEnrollment?.school || "-"} />
-                <KeyValueItem label="Class ID" value={student.currentEnrollment?.classId || "-"} />
-                <KeyValueItem
-                  label="Academic Session"
-                  value={student.currentEnrollment?.academicSession || "-"}
-                />
-                <KeyValueItem
-                  label="Session ID"
-                  value={student.currentEnrollment?.academicSessionId || "-"}
-                />
+                <KeyValueItem label="School" value={enrollmentData.schoolName || student.currentEnrollment?.school || "-"} />
+                <KeyValueItem label="Class" value={enrollmentData.className || student.currentEnrollment?.classId || "-"} />
+                <KeyValueItem label="Academic Session" value={enrollmentData.sessionName || "-"} />
               </CardContent>
             </Card>
           </div>

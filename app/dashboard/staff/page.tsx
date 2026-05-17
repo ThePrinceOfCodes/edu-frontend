@@ -28,6 +28,10 @@ export default function StaffPage() {
   const [school, setSchool] = useState("")
   const [designation, setDesignation] = useState("")
   const [employeeId, setEmployeeId] = useState("")
+  const [gender, setGender] = useState<"" | "M" | "F">("")
+  const [academicQualification, setAcademicQualification] = useState<"" | "NCE" | "B.Ed" | "B.Sc" | "HND" | "PGDE" | "SSCE">("")
+  const [trcnRegistered, setTrcnRegistered] = useState<"" | "yes" | "no">("")
+  const [salarySource, setSalarySource] = useState<"" | "1-FTS" | "2-SUBEB" | "3-Private">("")
   const [loadError, setLoadError] = useState<string | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -46,6 +50,47 @@ export default function StaffPage() {
       ),
     [schools]
   )
+
+  function toSurnameFirst(name?: string) {
+    if (!name) {
+      return "N/A"
+    }
+
+    const parts = name.trim().split(/\s+/).filter(Boolean)
+    if (parts.length <= 1) {
+      return name.trim()
+    }
+
+    const surname = parts[parts.length - 1]
+    const otherNames = parts.slice(0, -1).join(" ")
+    return `${surname} ${otherNames}`
+  }
+
+  function resolveStaffType(item: Staff) {
+    const designation = (item.designation || "").toLowerCase()
+
+    if (designation.includes("head")) {
+      return "1-Head"
+    }
+
+    if (designation.includes("vice") || designation.includes("vprincipal")) {
+      return "2-VPrincipal"
+    }
+
+    if (item.employmentType === "teacher") {
+      return "3-Teacher"
+    }
+
+    return "4-NonTeaching"
+  }
+
+  function resolveCurrentStatus(item: Staff) {
+    if (item.isActive === false) {
+      return "N/A"
+    }
+
+    return "1-Present"
+  }
 
   async function loadStaff() {
     setLoadError(null)
@@ -80,6 +125,10 @@ export default function StaffPage() {
         school: school || undefined,
         designation: designation || undefined,
         employeeId: employeeId || undefined,
+        gender: gender || undefined,
+        academicQualification: academicQualification || undefined,
+        trcnRegistered: trcnRegistered === "" ? undefined : trcnRegistered === "yes",
+        salarySource: salarySource || undefined,
         user: {
           name: userName,
           email: userEmail,
@@ -94,6 +143,10 @@ export default function StaffPage() {
       setSchool("")
       setDesignation("")
       setEmployeeId("")
+      setGender("")
+      setAcademicQualification("")
+      setTrcnRegistered("")
+      setSalarySource("")
       setIsCreateOpen(false)
       await loadStaff()
     } catch (submitError) {
@@ -156,13 +209,23 @@ export default function StaffPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="staff-school">School ID (optional)</Label>
-                <Input
+                <Label htmlFor="staff-school">School (optional)</Label>
+                <select
                   id="staff-school"
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
                   value={school}
                   onChange={(event) => setSchool(event.target.value)}
-                  placeholder="Use for school-level staff, including independent schools"
-                />
+                >
+                  <option value="">Select school</option>
+                  {schools.map((item) => {
+                    const schoolId = item._id ?? item.id ?? ""
+                    return (
+                      <option key={schoolId} value={schoolId}>
+                        {item.name}
+                      </option>
+                    )
+                  })}
+                </select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="staff-designation">Designation</Label>
@@ -171,6 +234,67 @@ export default function StaffPage() {
                   value={designation}
                   onChange={(event) => setDesignation(event.target.value)}
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="staff-gender">Gender</Label>
+                <select
+                  id="staff-gender"
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                  value={gender}
+                  onChange={(event) => setGender(event.target.value as "" | "M" | "F")}
+                >
+                  <option value="">Select gender</option>
+                  <option value="M">M</option>
+                  <option value="F">F</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="staff-qualification">Academic Qualification</Label>
+                <select
+                  id="staff-qualification"
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                  value={academicQualification}
+                  onChange={(event) =>
+                    setAcademicQualification(
+                      event.target.value as "" | "NCE" | "B.Ed" | "B.Sc" | "HND" | "PGDE" | "SSCE"
+                    )
+                  }
+                >
+                  <option value="">Select qualification</option>
+                  <option value="NCE">NCE</option>
+                  <option value="B.Ed">B.Ed</option>
+                  <option value="B.Sc">B.Sc</option>
+                  <option value="HND">HND</option>
+                  <option value="PGDE">PGDE</option>
+                  <option value="SSCE">SSCE</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="staff-trcn">TRCN Registered</Label>
+                <select
+                  id="staff-trcn"
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                  value={trcnRegistered}
+                  onChange={(event) => setTrcnRegistered(event.target.value as "" | "yes" | "no")}
+                >
+                  <option value="">Select option</option>
+                  <option value="yes">Yes</option>
+                  <option value="no">No</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="staff-salary-source">Salary Source</Label>
+                <select
+                  id="staff-salary-source"
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                  value={salarySource}
+                  onChange={(event) => setSalarySource(event.target.value as "" | "1-FTS" | "2-SUBEB" | "3-Private")}
+                >
+                  <option value="">Select salary source</option>
+                  <option value="1-FTS">1-FTS</option>
+                  <option value="2-SUBEB">2-SUBEB</option>
+                  <option value="3-Private">3-Private</option>
+                </select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="staff-employee-id">Employee ID</Label>
@@ -226,7 +350,7 @@ export default function StaffPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Staff Table</CardTitle>
+          <CardTitle>Personnel (Staff) Audit Table</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {loadError ? <p className="text-sm text-destructive">{loadError}</p> : null}
@@ -235,14 +359,19 @@ export default function StaffPage() {
             <p className="text-sm text-muted-foreground">No staff records found.</p>
           ) : null}
           {!loading && staffList.length > 0 ? (
-            <div className="overflow-x-auto rounded-md border">
+            <div className="overflow-hidden rounded-md border">
+              <div className="max-h-[28rem] overflow-auto">
               <table className="min-w-full text-left text-sm">
-                <thead className="bg-muted/40 text-muted-foreground">
+                <thead className="sticky top-0 z-10 bg-muted/40 text-muted-foreground">
                   <tr>
-                    <th className="px-3 py-2 font-medium">Designation</th>
-                    <th className="px-3 py-2 font-medium">Employee ID</th>
-                    <th className="px-3 py-2 font-medium">Type</th>
-                    <th className="px-3 py-2 font-medium">Status</th>
+                    <th className="px-3 py-2 font-medium">Staff_Full_Name</th>
+                    <th className="px-3 py-2 font-medium">Gender</th>
+                    <th className="px-3 py-2 font-medium">Staff_Type</th>
+                    <th className="px-3 py-2 font-medium">Academic_Qualification</th>
+                    <th className="px-3 py-2 font-medium">TRCN_Registered</th>
+                    <th className="px-3 py-2 font-medium">Salary_Source</th>
+                    <th className="px-3 py-2 font-medium">Subject_Specialization</th>
+                    <th className="px-3 py-2 font-medium">Current_Status</th>
                     <th className="px-3 py-2 font-medium">School</th>
                     <th className="px-3 py-2 font-medium">Action</th>
                   </tr>
@@ -250,16 +379,21 @@ export default function StaffPage() {
                 <tbody>
                   {staffList.map((item) => {
                     const itemId = item._id ?? item.id ?? ""
+                    const fullName = item.user && typeof item.user === "object" ? item.user.name : undefined
 
                     return (
                     <tr
                       key={itemId || `${item.schoolBoard}-${item.employeeId}`}
                       className="border-t"
                     >
-                      <td className="px-3 py-2">{item.designation || "-"}</td>
-                      <td className="px-3 py-2">{item.employeeId || "-"}</td>
-                      <td className="px-3 py-2">{item.employmentType || "staff"}</td>
-                      <td className="px-3 py-2">{item.isActive === false ? "inactive" : "active"}</td>
+                      <td className="px-3 py-2">{toSurnameFirst(fullName)}</td>
+                      <td className="px-3 py-2">{item.gender || "N/A"}</td>
+                      <td className="px-3 py-2">{resolveStaffType(item)}</td>
+                      <td className="px-3 py-2">{item.academicQualification || "N/A"}</td>
+                      <td className="px-3 py-2">{typeof item.trcnRegistered === "boolean" ? (item.trcnRegistered ? "Yes" : "No") : "N/A"}</td>
+                      <td className="px-3 py-2">{item.salarySource || "N/A"}</td>
+                      <td className="px-3 py-2">{item.designation || "N/A"}</td>
+                      <td className="px-3 py-2">{resolveCurrentStatus(item)}</td>
                       <td className="px-3 py-2">{item.school ? (schoolNameMap.get(item.school) ?? "Unknown school") : "-"}</td>
                       <td className="px-3 py-2">
                         {itemId ? (
@@ -278,6 +412,7 @@ export default function StaffPage() {
                   })}
                 </tbody>
               </table>
+              </div>
             </div>
           ) : null}
         </CardContent>

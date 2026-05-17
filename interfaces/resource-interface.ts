@@ -187,6 +187,10 @@ export interface Staff {
   schoolBoard?: string | null
   school?: string | null
   avatar?: string | null
+  gender?: "M" | "F" | null
+  academicQualification?: "NCE" | "B.Ed" | "B.Sc" | "HND" | "PGDE" | "SSCE" | null
+  trcnRegistered?: boolean | null
+  salarySource?: "1-FTS" | "2-SUBEB" | "3-Private" | null
   user?:
     | string
     | {
@@ -207,6 +211,10 @@ export interface CreateStaffInput {
   employeeId?: string
   designation?: string
   avatar?: string
+  gender?: "M" | "F"
+  academicQualification?: "NCE" | "B.Ed" | "B.Sc" | "HND" | "PGDE" | "SSCE"
+  trcnRegistered?: boolean
+  salarySource?: "1-FTS" | "2-SUBEB" | "3-Private"
   employmentType?: "teacher" | "staff"
   isActive?: boolean
   user: {
@@ -223,6 +231,10 @@ export interface UpdateStaffInput {
   employeeId?: string
   designation?: string
   avatar?: string | null
+  gender?: "M" | "F" | null
+  academicQualification?: "NCE" | "B.Ed" | "B.Sc" | "HND" | "PGDE" | "SSCE" | null
+  trcnRegistered?: boolean | null
+  salarySource?: "1-FTS" | "2-SUBEB" | "3-Private" | null
   employmentType?: "teacher" | "staff"
   isActive?: boolean
 }

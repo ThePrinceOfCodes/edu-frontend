@@ -153,7 +153,7 @@ export default function StudentProfilePage() {
         (s) =>
           s.id === student.currentEnrollment?.academicSessionId ||
           s._id === student.currentEnrollment?.academicSessionId
-      )?.name
+      )?.name ?? undefined
 
       setEnrollmentData({ schoolName, className, sessionName })
     } catch (error) {

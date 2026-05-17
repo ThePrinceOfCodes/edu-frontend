@@ -422,6 +422,25 @@ export interface GuardianStudentResult {
   schoolName: string
 }
 
+export interface GuardianAttendanceRecord {
+  id: string
+  date: string
+  status: "present" | "absent" | "late" | "excused"
+  termId?: string | null
+  termName?: string | null
+  academicSession?: string | null
+  schoolId?: string | null
+}
+
+export interface GuardianTermOption {
+  id: string
+  name: string
+  termName: string
+  academicSession?: string | null
+  startDate: string
+  endDate: string
+}
+
 export interface GuardianStudentOverview {
   id: string
   fullName: string
@@ -449,6 +468,7 @@ export interface GuardianStudentOverview {
     attendanceRate: number
     lastMarkedDate?: string | null
   }
+  attendanceRecords: GuardianAttendanceRecord[]
   results: GuardianStudentResult[]
 }
 
@@ -458,6 +478,8 @@ export interface GuardianStudentsOverviewResponse {
     name: string
     email: string
   }
+  termOptions: GuardianTermOption[]
+  academicSessionOptions: string[]
   students: GuardianStudentOverview[]
 }
 

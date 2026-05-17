@@ -344,6 +344,32 @@ export default function ResultsPage() {
     XLSX.writeFile(workbook, "results-import-sample.xlsx")
   }
 
+  function handleExportResults() {
+    if (results.length === 0) {
+      return
+    }
+
+    const rows = results.map((item) => ({
+      student: studentNameMap.get(item.student) ?? item.student,
+      regNumber: students.find((student) => (student._id ?? student.id) === item.student)?.regNumber ?? "",
+      subject: item.subject,
+      testScore: item.testScore,
+      examScore: item.examScore,
+      totalScore: item.totalScore,
+      class: classNameMap.get(item.classId) ?? item.classId,
+      term: termNameMap.get(item.termId) ?? item.termId,
+      academicSession: sessionNameMap.get(item.academicSessionId) ?? item.academicSessionId,
+      school: schoolNameMap.get(item.school) ?? item.school,
+      assessmentDate: item.assessmentDate ? new Date(item.assessmentDate).toISOString().slice(0, 10) : "",
+      remark: item.remark ?? "",
+    }))
+
+    const worksheet = XLSX.utils.json_to_sheet(rows)
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Results Export")
+    XLSX.writeFile(workbook, `results-export-${new Date().toISOString().slice(0, 10)}.xlsx`)
+  }
+
   async function handleDelete(resultId: string) {
     const confirmed = window.confirm("Delete this result record?")
     if (!confirmed) {
@@ -374,6 +400,9 @@ export default function ResultsPage() {
       <div className="flex flex-wrap items-center gap-2">
         <Button type="button" variant="outline" onClick={handleDownloadSample}>
           Download Sample File
+        </Button>
+        <Button type="button" variant="outline" onClick={handleExportResults} disabled={results.length === 0 || loading}>
+          Export Results
         </Button>
         <Modal open={isImportOpen} onOpenChange={setIsImportOpen}>
           <ModalTrigger render={<Button variant="outline" />}>Import Excel</ModalTrigger>

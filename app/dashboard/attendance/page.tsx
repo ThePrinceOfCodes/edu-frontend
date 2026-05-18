@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react"
 import type { AttendanceSummary, Class, School, Student } from "@/interfaces/resource-interface"
 import { authService } from "@/services/auth-service"
 import { resourceService } from "@/services/resource-service"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 const statusView: Record<string, { label: string; className: string }> = {
@@ -97,24 +98,38 @@ export default function AttendancePage() {
   const [loading, setLoading] = useState(true)
   const [classesLoading, setClassesLoading] = useState(false)
   const [trendView, setTrendView] = useState<"weekly" | "monthly">("weekly")
+  const [showClassSummaryStats, setShowClassSummaryStats] = useState(true)
+  const [studentSearch, setStudentSearch] = useState("")
+  const [genderFilter, setGenderFilter] = useState<"all" | "male" | "female">("all")
+  const [minAttendanceFilter, setMinAttendanceFilter] = useState("")
+  const [maxAttendanceFilter, setMaxAttendanceFilter] = useState("")
+  const [performanceFilter, setPerformanceFilter] = useState<
+    "all" | "excellent" | "good" | "fair" | "poor" | "perfect" | "with-absence"
+  >("all")
 
   async function resolveActiveTermId(schoolId: string) {
-    try {
-      const activeTerm = await resourceService.getActiveTerm({ school: schoolId })
-      return activeTerm._id ?? activeTerm.id ?? ""
-    } catch {
-      const authUser = authService.getStoredUser()
-      const fallbackTerms = await resourceService.getTerms({
-        schoolBoard: authUser?.schoolBoardId ?? undefined,
-        school: authUser?.schoolId ?? undefined,
-        isActive: true,
-        limit: 1,
-        page: 1,
-      })
+    const schoolScopedTerms = await resourceService.getTerms({
+      school: schoolId,
+      isActive: true,
+      limit: 1,
+      page: 1,
+    })
 
-      const term = fallbackTerms.results[0]
-      return term?._id ?? term?.id ?? ""
+    const schoolScopedTerm = schoolScopedTerms.results[0]
+    if (schoolScopedTerm) {
+      return schoolScopedTerm._id ?? schoolScopedTerm.id ?? ""
     }
+
+    const authUser = authService.getStoredUser()
+    const fallbackTerms = await resourceService.getTerms({
+      schoolBoard: authUser?.schoolBoardId ?? undefined,
+      isActive: true,
+      limit: 1,
+      page: 1,
+    })
+
+    const term = fallbackTerms.results[0]
+    return term?._id ?? term?.id ?? ""
   }
 
   useEffect(() => {
@@ -339,6 +354,80 @@ const genderMap = studentResult.results.reduce<Record<string, "male" | "female">
     () => schoolClasses.find((classItem) => (classItem._id ?? classItem.id) === selectedClassId) ?? null,
     [schoolClasses, selectedClassId]
   )
+  const filteredClassRows = useMemo(() => {
+    if (!summary || !selectedClass) {
+      return []
+    }
+
+    const minFilter = minAttendanceFilter.trim() === "" ? null : Number(minAttendanceFilter)
+    const maxFilter = maxAttendanceFilter.trim() === "" ? null : Number(maxAttendanceFilter)
+    const hasValidMin = minFilter !== null && !Number.isNaN(minFilter)
+    const hasValidMax = maxFilter !== null && !Number.isNaN(maxFilter)
+    const query = studentSearch.trim().toLowerCase()
+
+    return summary.rows.filter((row) => {
+      const attendancePercentage = row.attendancePercentage
+      const gender = resolveGender(row, selectedSchoolGenderMap)
+
+      if (query) {
+        const haystack = `${row.studentName} ${row.regNumber}`.toLowerCase()
+        if (!haystack.includes(query)) {
+          return false
+        }
+      }
+
+      if (genderFilter !== "all" && gender !== genderFilter) {
+        return false
+      }
+
+      if (hasValidMin && attendancePercentage < (minFilter as number)) {
+        return false
+      }
+
+      if (hasValidMax && attendancePercentage > (maxFilter as number)) {
+        return false
+      }
+
+      if (performanceFilter === "excellent" && attendancePercentage < 90) {
+        return false
+      }
+
+      if (performanceFilter === "good" && (attendancePercentage < 80 || attendancePercentage >= 90)) {
+        return false
+      }
+
+      if (performanceFilter === "fair" && (attendancePercentage < 70 || attendancePercentage >= 80)) {
+        return false
+      }
+
+      if (performanceFilter === "poor" && attendancePercentage >= 70) {
+        return false
+      }
+
+      if (performanceFilter === "perfect" && attendancePercentage < 100) {
+        return false
+      }
+
+      if (performanceFilter === "with-absence") {
+        const hasAbsence = visibleDays.some((day) => row.statusByDate[day.date] === "absent")
+        if (!hasAbsence) {
+          return false
+        }
+      }
+
+      return true
+    })
+  }, [
+    summary,
+    selectedClass,
+    minAttendanceFilter,
+    maxAttendanceFilter,
+    studentSearch,
+    genderFilter,
+    performanceFilter,
+    selectedSchoolGenderMap,
+    visibleDays,
+  ])
   const allSchoolsDashboardMetrics = useMemo(() => {
     if (allSchoolSummaries.length === 0) {
       return null
@@ -640,12 +729,16 @@ const genderMap = studentResult.results.reduce<Record<string, "male" | "female">
   const worstClasses = selectedSchool && activeDashboardMetrics && "worstClasses" in activeDashboardMetrics
     ? activeDashboardMetrics.worstClasses
     : []
+  const termCardValue = selectedSchool ? (summary?.term.name ?? "-") : "Active terms"
+  const termSplitIndex = termCardValue.indexOf("(")
+  const termFirstLine = termSplitIndex > -1 ? termCardValue.slice(0, termSplitIndex).trim() : termCardValue
+  const termSecondLine = termSplitIndex > -1 ? termCardValue.slice(termSplitIndex).trim() : ""
 
   return (
-    <div className="space-y-6 pb-6">
+    <div className="space-y-6 overflow-x-hidden pb-6">
       <Card className="overflow-hidden border-0 bg-gradient-to-r from-slate-900 via-cyan-950 to-teal-900 text-white shadow-lg">
-        <CardContent className="grid gap-5 p-5 md:grid-cols-[1.2fr_1fr] md:p-6">
-          <div className="space-y-3">
+        <CardContent className="grid min-w-0 gap-5 p-5 md:grid-cols-[1.2fr_1fr] md:p-6">
+          <div className="min-w-0 space-y-3">
             <p className="inline-flex rounded-full bg-white/15 px-3 py-1 text-xs font-medium tracking-wide text-white/90">
               Attendance Intelligence
             </p>
@@ -655,20 +748,20 @@ const genderMap = studentResult.results.reduce<Record<string, "male" | "female">
                 Review school-wide trends, compare performance, and drill into class-level attendance in one place.
               </p>
             </div>
-            <div className="flex flex-wrap gap-2 text-xs">
-              <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1">
+            <div className="flex min-w-0 flex-wrap gap-2 text-xs">
+              <span className="max-w-full truncate rounded-full border border-white/20 bg-white/10 px-3 py-1">
                 {selectedClass ? `${selectedClass.code} Register` : selectedSchool ? "School Overview" : "All Schools Overview"}
               </span>
-              <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1">
+              <span className="max-w-full truncate rounded-full border border-white/20 bg-white/10 px-3 py-1">
                 Students: {studentsCardValue}
               </span>
-              <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 capitalize">
+              <span className="max-w-full truncate rounded-full border border-white/20 bg-white/10 px-3 py-1 capitalize">
                 Scope: {selectedSchool ? (summary?.term.resolvedScope ?? "-") : "all schools"}
               </span>
             </div>
           </div>
 
-          <div className="grid gap-3 rounded-xl border border-white/20 bg-white/10 p-4 backdrop-blur">
+          <div className="grid min-w-0 gap-3 rounded-xl border border-white/20 bg-white/10 p-4 backdrop-blur">
             <div className="space-y-1">
               <label htmlFor="attendance-school" className="text-xs font-semibold uppercase tracking-wide text-white/85">
                 School
@@ -733,40 +826,66 @@ const genderMap = studentResult.results.reduce<Record<string, "male" | "female">
       </Card>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Card className="border-0 bg-gradient-to-br from-white to-slate-50 shadow-sm">
+        <Card className="min-w-0 border-0 bg-gradient-to-br from-white to-slate-50 shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Students</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-semibold tracking-tight">{studentsCardValue}</p>
-            <p className="text-xs text-muted-foreground">Covered in the current dashboard scope</p>
+            <p className="truncate text-3xl font-semibold tracking-tight" title={`${studentsCardValue}`}>
+              {studentsCardValue}
+            </p>
+            <p className="truncate text-xs text-muted-foreground">Covered in the current dashboard scope</p>
           </CardContent>
         </Card>
-        <Card className="border-0 bg-gradient-to-br from-white to-cyan-50 shadow-sm">
+        <Card className="min-w-0 border-0 bg-gradient-to-br from-white to-cyan-50 shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Term</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-lg font-semibold tracking-tight">{selectedSchool ? (summary?.term.name ?? "-") : "Active terms"}</p>
-            <p className="text-xs text-muted-foreground">Source term used for analytics</p>
+            <p
+              className="truncate text-lg font-semibold tracking-tight"
+              title={termCardValue}
+            >
+              {termFirstLine}
+            </p>
+            {termSecondLine ? (
+              <p className="truncate text-xs text-muted-foreground" title={termSecondLine}>
+                {termSecondLine}
+              </p>
+            ) : null}
           </CardContent>
         </Card>
-        <Card className="border-0 bg-gradient-to-br from-white to-emerald-50 shadow-sm">
+        <Card className="min-w-0 border-0 bg-gradient-to-br from-white to-emerald-50 shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Scope</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-lg font-semibold capitalize tracking-tight">
+            <p
+              className="truncate text-lg font-semibold capitalize tracking-tight"
+              title={selectedSchool ? (summary?.term.resolvedScope ?? "-") : "all schools"}
+            >
               {selectedSchool ? (summary?.term.resolvedScope ?? "-") : "all schools"}
             </p>
-            <p className="text-xs text-muted-foreground">Current visibility context</p>
+            <p className="truncate text-xs text-muted-foreground">Current visibility context</p>
           </CardContent>
         </Card>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>{selectedClass ? `${selectedClass.code} Attendance Register` : "Attendance Overview"}</CardTitle>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle>{selectedClass ? `${selectedClass.code} Attendance Register` : "Attendance Overview"}</CardTitle>
+            {selectedClass ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowClassSummaryStats((current) => !current)}
+              >
+                {showClassSummaryStats ? "Hide Summary & Statistics" : "Show Summary & Statistics"}
+              </Button>
+            ) : null}
+          </div>
           {selectedSchool && summary ? (
             <p className="text-sm text-muted-foreground">
               {summary.term.name} • {new Date(summary.term.startDate).toLocaleDateString()} -{" "}
@@ -780,7 +899,7 @@ const genderMap = studentResult.results.reduce<Record<string, "male" | "female">
             </p>
           ) : null}
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="min-w-0 space-y-3">
           {loadError ? <p className="text-sm text-destructive">{loadError}</p> : null}
           {loading ? <p className="text-sm text-muted-foreground">Loading...</p> : null}
           {!loading && !loadError && selectedSchool && classesLoading ? (
@@ -792,8 +911,8 @@ const genderMap = studentResult.results.reduce<Record<string, "male" | "female">
           {!loading && !loadError && !selectedSchool && !activeDashboardMetrics ? (
             <p className="text-sm text-muted-foreground">No attendance records found across schools.</p>
           ) : null}
-          {!loading && !loadError && activeDashboardMetrics && !selectedClass ? (
-            <div className="space-y-4">
+          {!loading && !loadError && activeDashboardMetrics && (!selectedClass || showClassSummaryStats) ? (
+            <div className="min-w-0 space-y-4">
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                 <Card className="border-0 bg-gradient-to-br from-emerald-50 to-emerald-100/60 shadow-none">
                   <CardHeader className="pb-2">
@@ -852,8 +971,8 @@ const genderMap = studentResult.results.reduce<Record<string, "male" | "female">
                 </Card>
               </div>
 
-              <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-                <Card className="shadow-none">
+              <div className="min-w-0 grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+                <Card className="min-w-0 shadow-none">
                   <CardHeader className="pb-3">
                     <CardTitle className="text-base">
                       {selectedSchool ? "Recent Attendance Trend" : "School Attendance Summaries"}
@@ -904,7 +1023,7 @@ const genderMap = studentResult.results.reduce<Record<string, "male" | "female">
                   </CardContent>
                 </Card>
 
-                <Card className="shadow-none">
+                <Card className="min-w-0 shadow-none">
                   <CardHeader className="pb-3">
                     <CardTitle className="text-base">Attendance Split</CardTitle>
                   </CardHeader>
@@ -967,8 +1086,8 @@ const genderMap = studentResult.results.reduce<Record<string, "male" | "female">
               </div>
 
               {selectedSchool && activeDashboardMetrics && "weeklyTrend" in activeDashboardMetrics ? (
-                <div className="grid gap-4 lg:grid-cols-[1.6fr_0.9fr]">
-                  <Card className="shadow-none">
+                <div className="min-w-0 grid gap-4 lg:grid-cols-[1.6fr_0.9fr]">
+                  <Card className="min-w-0 shadow-none">
                     <CardHeader>
                       <div className="flex items-center justify-between gap-3">
                         <CardTitle className="text-base">Attendance Trend</CardTitle>
@@ -1010,7 +1129,7 @@ const genderMap = studentResult.results.reduce<Record<string, "male" | "female">
                         ) : (
                           (() => {
                             const chartData = activeDashboardMetrics.weeklyTrend
-                            const chartWidth = Math.max(640, chartData.length * 56)
+                            const chartWidth = 1000
                             const chartHeight = 220
                             const padding = { top: 18, right: 18, bottom: 32, left: 38 }
                             const innerWidth = chartWidth - padding.left - padding.right
@@ -1028,9 +1147,9 @@ const genderMap = studentResult.results.reduce<Record<string, "male" | "female">
                             const yTicks = [0, 25, 50, 75, 100]
 
                             return (
-                              <div className="space-y-3 overflow-x-auto pb-2">
+                              <div className="space-y-3 pb-2">
                                 <svg
-                                  width={chartWidth}
+                                  width="100%"
                                   height={chartHeight}
                                   viewBox={`0 0 ${chartWidth} ${chartHeight}`}
                                   className="rounded-md border bg-slate-50"
@@ -1092,9 +1211,12 @@ const genderMap = studentResult.results.reduce<Record<string, "male" | "female">
                                   </defs>
                                 </svg>
 
-                                <div className="flex min-w-max justify-between gap-4 px-1 text-[10px] text-muted-foreground">
+                                <div
+                                  className="grid gap-1 px-1 text-[10px] text-muted-foreground"
+                                  style={{ gridTemplateColumns: `repeat(${chartData.length}, minmax(0, 1fr))` }}
+                                >
                                   {chartData.map((day) => (
-                                    <span key={day.date} className="w-8 text-center">
+                                    <span key={day.date} className="truncate text-center">
                                       {day.label}
                                     </span>
                                   ))}
@@ -1149,7 +1271,7 @@ const genderMap = studentResult.results.reduce<Record<string, "male" | "female">
                     </CardContent>
                   </Card>
 
-                  <Card className="shadow-none">
+                  <Card className="min-w-0 shadow-none">
                     <CardHeader>
                       <CardTitle className="text-base">Day of Week Analysis</CardTitle>
                       <p className="text-sm text-muted-foreground">Heatmap for day-level absence pressure</p>
@@ -1185,7 +1307,7 @@ const genderMap = studentResult.results.reduce<Record<string, "male" | "female">
 
               {!selectedSchool ? (
                 <div className="grid gap-4 md:grid-cols-2">
-                  <Card className="shadow-none">
+                  <Card className="min-w-0 shadow-none">
                     <CardHeader>
                       <CardTitle className="text-base">Best Schools by Attendance</CardTitle>
                     </CardHeader>
@@ -1195,8 +1317,8 @@ const genderMap = studentResult.results.reduce<Record<string, "male" | "female">
                       ) : (
                         bestSchools.map((item, index) => (
                           <div key={item.schoolId} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
-                            <div>
-                              <p className="font-medium">{index + 1}. {item.schoolName}</p>
+                            <div className="min-w-0">
+                              <p className="truncate font-medium">{index + 1}. {item.schoolName}</p>
                               <p className="text-muted-foreground">{item.present} present • {item.absent} absent</p>
                             </div>
                             <span className="font-semibold text-emerald-700">{item.rate}%</span>
@@ -1206,7 +1328,7 @@ const genderMap = studentResult.results.reduce<Record<string, "male" | "female">
                     </CardContent>
                   </Card>
 
-                  <Card className="shadow-none">
+                  <Card className="min-w-0 shadow-none">
                     <CardHeader>
                       <CardTitle className="text-base">Worst Schools by Attendance</CardTitle>
                     </CardHeader>
@@ -1216,8 +1338,8 @@ const genderMap = studentResult.results.reduce<Record<string, "male" | "female">
                       ) : (
                         worstSchools.map((item, index) => (
                           <div key={item.schoolId} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
-                            <div>
-                              <p className="font-medium">{index + 1}. {item.schoolName}</p>
+                            <div className="min-w-0">
+                              <p className="truncate font-medium">{index + 1}. {item.schoolName}</p>
                               <p className="text-muted-foreground">{item.present} present • {item.absent} absent</p>
                             </div>
                             <span className="font-semibold text-rose-700">{item.rate}%</span>
@@ -1231,7 +1353,7 @@ const genderMap = studentResult.results.reduce<Record<string, "male" | "female">
 
               {selectedSchool ? (
                 <div className="grid gap-4 md:grid-cols-2">
-                  <Card className="shadow-none">
+                  <Card className="min-w-0 shadow-none">
                     <CardHeader>
                       <CardTitle className="text-base">Best Classes by Attendance</CardTitle>
                     </CardHeader>
@@ -1241,8 +1363,8 @@ const genderMap = studentResult.results.reduce<Record<string, "male" | "female">
                       ) : (
                         bestClasses.map((item, index) => (
                           <div key={item.classId} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
-                            <div>
-                              <p className="font-medium">{index + 1}. {item.className}</p>
+                            <div className="min-w-0">
+                              <p className="truncate font-medium">{index + 1}. {item.className}</p>
                               <p className="text-muted-foreground">{item.present} present • {item.absent} absent</p>
                             </div>
                             <span className="font-semibold text-emerald-700">{item.rate}%</span>
@@ -1252,7 +1374,7 @@ const genderMap = studentResult.results.reduce<Record<string, "male" | "female">
                     </CardContent>
                   </Card>
 
-                  <Card className="shadow-none">
+                  <Card className="min-w-0 shadow-none">
                     <CardHeader>
                       <CardTitle className="text-base">Worst Classes by Attendance</CardTitle>
                     </CardHeader>
@@ -1262,8 +1384,8 @@ const genderMap = studentResult.results.reduce<Record<string, "male" | "female">
                       ) : (
                         worstClasses.map((item, index) => (
                           <div key={item.classId} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
-                            <div>
-                              <p className="font-medium">{index + 1}. {item.className}</p>
+                            <div className="min-w-0">
+                              <p className="truncate font-medium">{index + 1}. {item.className}</p>
                               <p className="text-muted-foreground">{item.present} present • {item.absent} absent</p>
                             </div>
                             <span className="font-semibold text-rose-700">{item.rate}%</span>
@@ -1277,7 +1399,110 @@ const genderMap = studentResult.results.reduce<Record<string, "male" | "female">
             </div>
           ) : null}
           {!loading && !loadError && summary && summary.rows.length > 0 && selectedClass ? (
-            <div className="overflow-x-auto rounded-md border bg-background">
+            <div className="min-w-0 space-y-4">
+              <Card className="shadow-none">
+                <CardHeader className="pb-1">
+                  <CardTitle className="text-sm">Filters</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-medium text-muted-foreground">Student</label>
+                      <input
+                        type="text"
+                        className="h-8 w-full rounded-md border bg-background px-2.5 text-xs"
+                        value={studentSearch}
+                        onChange={(event) => setStudentSearch(event.target.value)}
+                        placeholder="Name or reg no"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-medium text-muted-foreground">Gender</label>
+                      <select
+                        className="h-8 w-full rounded-md border bg-background px-2.5 text-xs"
+                        value={genderFilter}
+                        onChange={(event) => setGenderFilter(event.target.value as "all" | "male" | "female")}
+                      >
+                        <option value="all">All genders</option>
+                        <option value="male">Boys</option>
+                        <option value="female">Girls</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-medium text-muted-foreground">Performance</label>
+                      <select
+                        className="h-8 w-full rounded-md border bg-background px-2.5 text-xs"
+                        value={performanceFilter}
+                        onChange={(event) =>
+                          setPerformanceFilter(
+                            event.target.value as "all" | "excellent" | "good" | "fair" | "poor" | "perfect" | "with-absence"
+                          )
+                        }
+                      >
+                        <option value="all">All levels</option>
+                        <option value="excellent">Excellent (90%+)</option>
+                        <option value="good">Good (80-89%)</option>
+                        <option value="fair">Fair (70-79%)</option>
+                        <option value="poor">Poor (&lt;70%)</option>
+                        <option value="perfect">Perfect (100%)</option>
+                        <option value="with-absence">Has at least one absence</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-medium text-muted-foreground">Min %</label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        className="h-8 w-full rounded-md border bg-background px-2.5 text-xs"
+                        value={minAttendanceFilter}
+                        onChange={(event) => setMinAttendanceFilter(event.target.value)}
+                        placeholder="e.g. 75"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-medium text-muted-foreground">Max %</label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        className="h-8 w-full rounded-md border bg-background px-2.5 text-xs"
+                        value={maxAttendanceFilter}
+                        onChange={(event) => setMaxAttendanceFilter(event.target.value)}
+                        placeholder="e.g. 95"
+                      />
+                    </div>
+
+                    <div className="flex items-end">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-8 w-full text-xs"
+                        onClick={() => {
+                          setStudentSearch("")
+                          setGenderFilter("all")
+                          setPerformanceFilter("all")
+                          setMinAttendanceFilter("")
+                          setMaxAttendanceFilter("")
+                        }}
+                      >
+                        Reset Filters
+                      </Button>
+                    </div>
+                  </div>
+
+                  <p className="text-[11px] text-muted-foreground">
+                    Showing {filteredClassRows.length} of {summary.rows.length} students
+                  </p>
+                </CardContent>
+              </Card>
+
+              <div className="w-full max-w-full overflow-x-auto rounded-md border bg-background">
               <table className="min-w-max border-separate border-spacing-0 text-left text-sm">
                 <thead className="bg-muted/40 text-muted-foreground">
                   <tr>
@@ -1291,7 +1516,7 @@ const genderMap = studentResult.results.reduce<Record<string, "male" | "female">
                   </tr>
                 </thead>
                 <tbody>
-                  {summary.rows.map((row) => (
+                  {filteredClassRows.map((row) => (
                     <tr key={row.studentId}>
                       <td className="sticky left-0 z-20 min-w-56 border-b border-r border-border bg-background px-3 py-2">
                         <div className="font-medium">{row.studentName}</div>
@@ -1310,8 +1535,16 @@ const genderMap = studentResult.results.reduce<Record<string, "male" | "female">
                       })}
                     </tr>
                   ))}
+                  {filteredClassRows.length === 0 ? (
+                    <tr>
+                      <td className="px-3 py-4 text-sm text-muted-foreground" colSpan={2 + visibleDays.length}>
+                        No students match the selected filters.
+                      </td>
+                    </tr>
+                  ) : null}
                 </tbody>
               </table>
+            </div>
             </div>
           ) : null}
         </CardContent>

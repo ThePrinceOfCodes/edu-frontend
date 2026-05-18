@@ -27,6 +27,7 @@ import type {
   Message,
   MessageThread,
   PaginatedResponse,
+  GuardianLinkInput,
   PromoteStudentInput,
   QueueJob,
   QueueStatus,
@@ -40,6 +41,8 @@ import type {
   Student,
   Term,
   UpdateEventInput,
+  UpdateStaffInput,
+  UpdateStudentInput,
   UpdateSchoolInput,
   UpdateInternalUserInput,
   UpdateResultInput,
@@ -148,6 +151,15 @@ export const resourceService = {
       body: input,
     })
   },
+  getStaffById(staffId: string) {
+    return request<Staff>(`/api/staff/${staffId}`)
+  },
+  updateStaff(staffId: string, input: UpdateStaffInput) {
+    return request<Staff>(`/api/staff/${staffId}`, {
+      method: "PATCH",
+      body: input,
+    })
+  },
 
   getSchoolTypes(params?: { limit?: number; page?: number }) {
     return request<PaginatedResponse<SchoolType>>(`/api/school-types${toQueryString(params)}`)
@@ -197,6 +209,15 @@ export const resourceService = {
       body: input,
     })
   },
+  getStudentById(studentId: string) {
+    return request<Student>(`/api/students/${studentId}`)
+  },
+  updateStudent(studentId: string, input: UpdateStudentInput) {
+    return request<Student>(`/api/students/${studentId}`, {
+      method: "PATCH",
+      body: input,
+    })
+  },
   bulkCreateStudents(input: BulkCreateStudentsInput) {
     return request<{
       total: number
@@ -228,21 +249,21 @@ export const resourceService = {
   getGuardians(params?: { q?: string }) {
     return request<GuardiansListResponse>(`/api/guardians${toQueryString(params)}`)
   },
-  linkStudentsToGuardian(guardianId: string, studentIds: string[]) {
+  linkStudentsToGuardian(guardianId: string, input: GuardianLinkInput) {
     return request<{ guardianId: string; linkedStudentIds: string[]; linkedStudentsCount: number }>(
       `/api/guardians/${guardianId}/link-students`,
       {
         method: "POST",
-        body: { studentIds },
+        body: input,
       }
     )
   },
-  unlinkStudentsFromGuardian(guardianId: string, studentIds: string[]) {
+  unlinkStudentsFromGuardian(guardianId: string, input: { studentIds: string[] }) {
     return request<{ guardianId: string; unlinkedStudentIds: string[]; unlinkedStudentsCount: number }>(
       `/api/guardians/${guardianId}/unlink-students`,
       {
         method: "POST",
-        body: { studentIds },
+        body: input,
       }
     )
   },

@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
 import { useEffect, useMemo, useRef, useState } from "react"
 import {
+  BarChart3,
   BookOpen,
   ChevronUp,
   CalendarDays,
@@ -149,6 +150,12 @@ const navItems = [
   },
 ]
 
+const analyticsNavItem = {
+  title: "Analytics",
+  url: "/dashboard/analytics",
+  icon: BarChart3,
+}
+
 export function AppSidebar() {
   const router = useRouter()
   const pathname = usePathname()
@@ -181,6 +188,7 @@ export function AppSidebar() {
 
   const isInternalUser = authUser?.accountType === "internal"
   const isGuardian = authUser?.role === "guardian"
+  const isSchoolBoardAdmin = authUser?.role === "school-board-admin"
   const visibleNavItems = navItems.filter((item) => {
     if (item.hideForInternal && isInternalUser) return false
     if (item.showForInternal && !isInternalUser) return false
@@ -254,6 +262,26 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {isSchoolBoardAdmin ? (
+          <SidebarGroup>
+            <SidebarGroupLabel>Analytics</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem key={analyticsNavItem.title}>
+                  <SidebarMenuButton
+                    render={<Link href={analyticsNavItem.url} />}
+                    isActive={pathname.startsWith("/dashboard/analytics")}
+                    tooltip={analyticsNavItem.title}
+                  >
+                    <analyticsNavItem.icon />
+                    <span>{analyticsNavItem.title}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ) : null}
       </SidebarContent>
 
       <SidebarFooter>

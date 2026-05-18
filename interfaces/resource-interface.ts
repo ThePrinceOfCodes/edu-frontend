@@ -186,6 +186,11 @@ export interface Staff {
   _id?: string
   schoolBoard?: string | null
   school?: string | null
+  avatar?: string | null
+  gender?: "M" | "F" | null
+  academicQualification?: "NCE" | "B.Ed" | "B.Sc" | "HND" | "PGDE" | "SSCE" | null
+  trcnRegistered?: boolean | null
+  salarySource?: "1-FTS" | "2-SUBEB" | "3-Private" | null
   user?:
     | string
     | {
@@ -205,6 +210,11 @@ export interface CreateStaffInput {
   school?: string
   employeeId?: string
   designation?: string
+  avatar?: string
+  gender?: "M" | "F"
+  academicQualification?: "NCE" | "B.Ed" | "B.Sc" | "HND" | "PGDE" | "SSCE"
+  trcnRegistered?: boolean
+  salarySource?: "1-FTS" | "2-SUBEB" | "3-Private"
   employmentType?: "teacher" | "staff"
   isActive?: boolean
   user: {
@@ -214,6 +224,19 @@ export interface CreateStaffInput {
     phoneNumber?: string
     role?: "teacher" | "staff"
   }
+}
+
+export interface UpdateStaffInput {
+  school?: string
+  employeeId?: string
+  designation?: string
+  avatar?: string | null
+  gender?: "M" | "F" | null
+  academicQualification?: "NCE" | "B.Ed" | "B.Sc" | "HND" | "PGDE" | "SSCE" | null
+  trcnRegistered?: boolean | null
+  salarySource?: "1-FTS" | "2-SUBEB" | "3-Private" | null
+  employmentType?: "teacher" | "staff"
+  isActive?: boolean
 }
 
 export interface SchoolType {
@@ -344,6 +367,9 @@ export interface CreateGuardianInput {
   password: string
   phoneNumber?: string
   studentIds: string[]
+  relationshipType: "parent" | "caretaker"
+  parentType?: "father" | "mother" | null
+  isPrimary?: boolean
 }
 
 export interface GuardianLinkedStudent {
@@ -352,6 +378,16 @@ export interface GuardianLinkedStudent {
   regNumber: string
   schoolId?: string | null
   schoolName?: string | null
+  relationshipType?: "parent" | "caretaker" | null
+  parentType?: "father" | "mother" | null
+  isPrimary?: boolean
+}
+
+export interface StudentGuardianLink {
+  guardianId: string
+  relationshipType: "parent" | "caretaker"
+  parentType?: "father" | "mother" | null
+  isPrimary?: boolean
 }
 
 export interface GuardianAdminRecord {
@@ -386,6 +422,25 @@ export interface GuardianStudentResult {
   schoolName: string
 }
 
+export interface GuardianAttendanceRecord {
+  id: string
+  date: string
+  status: "present" | "absent" | "late" | "excused"
+  termId?: string | null
+  termName?: string | null
+  academicSession?: string | null
+  schoolId?: string | null
+}
+
+export interface GuardianTermOption {
+  id: string
+  name: string
+  termName: string
+  academicSession?: string | null
+  startDate: string
+  endDate: string
+}
+
 export interface GuardianStudentOverview {
   id: string
   fullName: string
@@ -413,6 +468,7 @@ export interface GuardianStudentOverview {
     attendanceRate: number
     lastMarkedDate?: string | null
   }
+  attendanceRecords: GuardianAttendanceRecord[]
   results: GuardianStudentResult[]
 }
 
@@ -422,6 +478,8 @@ export interface GuardianStudentsOverviewResponse {
     name: string
     email: string
   }
+  termOptions: GuardianTermOption[]
+  academicSessionOptions: string[]
   students: GuardianStudentOverview[]
 }
 
@@ -510,6 +568,7 @@ export interface Student {
   firstName: string
   middleName?: string | null
   lastName: string
+  avatar?: string | null
   regNumber: string
   stateOfOrigin: string
   localGovernment: string
@@ -520,6 +579,8 @@ export interface Student {
   classId?: string
   status?: "active" | "inactive"
   guardianIds?: string[]
+  guardianLinks?: StudentGuardianLink[]
+  primaryGuardianId?: string | null
   promotionHistory?: StudentHistory[]
   currentEnrollment?: StudentEnrollment | null
 }
@@ -528,15 +589,40 @@ export interface CreateStudentInput {
   firstName: string
   middleName?: string
   lastName: string
+  avatar?: string
   regNumber: string
   stateOfOrigin: string
   localGovernment: string
   gender: "male" | "female"
   dateOfBirth: string
   guardianIds?: string[]
+  guardianLinks?: StudentGuardianLink[]
+  primaryGuardianId?: string | null
   school: string
   classId: string
   status?: "active" | "inactive"
+}
+
+export interface UpdateStudentInput {
+  firstName?: string
+  middleName?: string | null
+  lastName?: string
+  avatar?: string | null
+  stateOfOrigin?: string
+  localGovernment?: string
+  gender?: "male" | "female"
+  dateOfBirth?: string
+  guardianIds?: string[]
+  guardianLinks?: StudentGuardianLink[]
+  primaryGuardianId?: string | null
+  status?: "active" | "inactive"
+}
+
+export interface GuardianLinkInput {
+  studentIds: string[]
+  relationshipType: "parent" | "caretaker"
+  parentType?: "father" | "mother" | null
+  isPrimary?: boolean
 }
 
 export interface PromoteStudentInput {

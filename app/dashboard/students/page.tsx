@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { FormEvent, useEffect, useMemo, useState } from "react"
 import * as XLSX from "xlsx"
 
@@ -685,11 +686,15 @@ export default function StudentsPage() {
                     <th className="px-3 py-2 font-medium">Gender</th>
                     <th className="px-3 py-2 font-medium">DOB</th>
                     <th className="px-3 py-2 font-medium">Status</th>
+                    <th className="px-3 py-2 font-medium">Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {students.map((item) => (
-                    <tr key={item._id ?? item.id ?? item.regNumber} className="border-t">
+                  {students.map((item) => {
+                    const studentId = item._id ?? item.id ?? ""
+
+                    return (
+                    <tr key={studentId || item.regNumber} className="border-t">
                       <td className="px-3 py-2">{item.firstName}</td>
                       <td className="px-3 py-2">{item.middleName || "-"}</td>
                       <td className="px-3 py-2">{item.lastName}</td>
@@ -702,8 +707,21 @@ export default function StudentsPage() {
                       <td className="px-3 py-2">{item.gender}</td>
                       <td className="px-3 py-2">{new Date(item.dateOfBirth).toLocaleDateString()}</td>
                       <td className="px-3 py-2">{item.status || "active"}</td>
+                      <td className="px-3 py-2">
+                        {studentId ? (
+                          <Link
+                            href={`/dashboard/students/${studentId}`}
+                            className="rounded-md border px-2 py-1 text-xs hover:bg-muted"
+                          >
+                            View Profile
+                          </Link>
+                        ) : (
+                          "-"
+                        )}
+                      </td>
                     </tr>
-                  ))}
+                    )
+                  })}
                 </tbody>
               </table>
             </div>

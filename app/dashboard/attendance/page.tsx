@@ -8,7 +8,7 @@ import { resourceService } from "@/services/resource-service"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
-const statusView: Record<string, { label: string; className: string }> = {
+const sessionView: Record<string, { label: string; className: string }> = {
   present: { label: "P", className: "text-emerald-600" },
   absent: { label: "A", className: "text-destructive" },
   "-": { label: "-", className: "text-muted-foreground" },
@@ -409,7 +409,10 @@ const genderMap = studentResult.results.reduce<Record<string, "male" | "female">
       }
 
       if (performanceFilter === "with-absence") {
-        const hasAbsence = visibleDays.some((day) => row.statusByDate[day.date] === "absent")
+        const hasAbsence = visibleDays.some((day) => {
+          const s = row.statusByDate[day.date]
+          return s?.am === "absent" || s?.pm === "absent"
+        })
         if (!hasAbsence) {
           return false
         }
@@ -476,24 +479,29 @@ const genderMap = studentResult.results.reduce<Record<string, "male" | "female">
         }
 
         schoolSummary.rows.forEach((row) => {
-          const status = row.statusByDate[day.date]
+          const s = row.statusByDate[day.date]
           const gender = resolveGender(row, fallbackGenderMap)
-          if (status === "present") {
+          if (s?.am === "present") {
             bucket.present += 1
             schoolPresent += 1
-            if (gender === "male") {
-              schoolMalePresent += 1
-            } else if (gender === "female") {
-              schoolFemalePresent += 1
-            }
-          } else if (status === "absent") {
+            if (gender === "male") schoolMalePresent += 1
+            else if (gender === "female") schoolFemalePresent += 1
+          } else if (s?.am === "absent") {
             bucket.absent += 1
             schoolAbsent += 1
-            if (gender === "male") {
-              schoolMaleAbsent += 1
-            } else if (gender === "female") {
-              schoolFemaleAbsent += 1
-            }
+            if (gender === "male") schoolMaleAbsent += 1
+            else if (gender === "female") schoolFemaleAbsent += 1
+          }
+          if (s?.pm === "present") {
+            bucket.present += 1
+            schoolPresent += 1
+            if (gender === "male") schoolMalePresent += 1
+            else if (gender === "female") schoolFemalePresent += 1
+          } else if (s?.pm === "absent") {
+            bucket.absent += 1
+            schoolAbsent += 1
+            if (gender === "male") schoolMaleAbsent += 1
+            else if (gender === "female") schoolFemaleAbsent += 1
           }
         })
       })
@@ -574,16 +582,13 @@ const genderMap = studentResult.results.reduce<Record<string, "male" | "female">
       let absent = 0
 
       summary.rows.forEach((row) => {
-        const status = row.statusByDate[day.date]
-        if (status === "present") {
-          present += 1
-        } else if (status === "absent") {
-          absent += 1
-        }
+        const s = row.statusByDate[day.date]
+        if (s?.am === "present") present += 1
+        else if (s?.am === "absent") absent += 1
+        if (s?.pm === "present") present += 1
+        else if (s?.pm === "absent") absent += 1
 
-        if (!row.classId) {
-          return
-        }
+        if (!row.classId) return
 
         if (!classStats.has(row.classId)) {
           classStats.set(row.classId, {
@@ -595,15 +600,12 @@ const genderMap = studentResult.results.reduce<Record<string, "male" | "female">
         }
 
         const bucket = classStats.get(row.classId)
-        if (!bucket) {
-          return
-        }
+        if (!bucket) return
 
-        if (status === "present") {
-          bucket.present += 1
-        } else if (status === "absent") {
-          bucket.absent += 1
-        }
+        if (s?.am === "present") bucket.present += 1
+        else if (s?.am === "absent") bucket.absent += 1
+        if (s?.pm === "present") bucket.present += 1
+        else if (s?.pm === "absent") bucket.absent += 1
       })
 
       const total = present + absent
@@ -1524,12 +1526,16 @@ const genderMap = studentResult.results.reduce<Record<string, "male" | "female">
                       </td>
                       <td className="whitespace-nowrap border-b border-r border-border px-3 py-2 text-right font-medium">{row.attendancePercentage}%</td>
                       {visibleDays.map((day) => {
-                        const rawStatus = row.statusByDate[day.date] ?? "-"
-                        const view = statusView[rawStatus] ?? statusView["-"]
+                        const s = row.statusByDate[day.date] ?? { am: "-", pm: "-" }
+                        const amView = sessionView[s.am] ?? sessionView["-"]
+                        const pmView = sessionView[s.pm] ?? sessionView["-"]
 
                         return (
                           <td key={`${row.studentId}-${day.date}`} className="border-b border-r border-border px-2 py-2 text-center">
-                            <span className={view.className}>{view.label}</span>
+                            <div className="flex flex-col items-center text-xs leading-tight">
+                              <span className={amView.className}>{amView.label}</span>
+                              <span className={pmView.className}>{pmView.label}</span>
+                            </div>
                           </td>
                         )
                       })}

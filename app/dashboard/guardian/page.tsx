@@ -21,8 +21,14 @@ function getAverageScore(results: GuardianStudentOverview["results"]) {
 }
 
 function getAttendanceMetrics(records: GuardianStudentOverview["attendanceRecords"]) {
-  const presentCount = records.filter((item) => item.status === "present" || item.status === "late").length
-  const absentCount = records.filter((item) => item.status === "absent" || item.status === "excused").length
+  let presentCount = 0
+  let absentCount = 0
+  records.forEach((item) => {
+    if (item.amStatus === "present" || item.amStatus === "late") presentCount++
+    else if (item.amStatus === "absent" || item.amStatus === "excused") absentCount++
+    if (item.pmStatus === "present" || item.pmStatus === "late") presentCount++
+    else if (item.pmStatus === "absent" || item.pmStatus === "excused") absentCount++
+  })
   const totalMarked = presentCount + absentCount
   const attendanceRate = totalMarked > 0 ? Number(((presentCount / totalMarked) * 100).toFixed(2)) : 0
 
@@ -324,7 +330,8 @@ export default function GuardianDashboardPage() {
                     <thead className="bg-muted/40 text-muted-foreground">
                       <tr>
                         <th className="px-2 py-2 font-medium">Date</th>
-                        <th className="px-2 py-2 font-medium">Status</th>
+                        <th className="px-2 py-2 font-medium">AM</th>
+                        <th className="px-2 py-2 font-medium">PM</th>
                         <th className="px-2 py-2 font-medium">Term</th>
                         <th className="px-2 py-2 font-medium">Session</th>
                       </tr>
@@ -332,7 +339,7 @@ export default function GuardianDashboardPage() {
                     <tbody>
                       {filteredAttendance.length === 0 ? (
                         <tr>
-                          <td colSpan={4} className="px-2 py-3 text-center text-muted-foreground">
+                          <td colSpan={5} className="px-2 py-3 text-center text-muted-foreground">
                             No attendance records for this selection.
                           </td>
                         </tr>
@@ -340,7 +347,8 @@ export default function GuardianDashboardPage() {
                         filteredAttendance.map((record) => (
                           <tr key={record.id} className="border-t">
                             <td className="px-2 py-2">{formatDate(record.date)}</td>
-                            <td className="px-2 py-2 capitalize">{record.status}</td>
+                            <td className="px-2 py-2 capitalize">{record.amStatus}</td>
+                            <td className="px-2 py-2 capitalize">{record.pmStatus}</td>
                             <td className="px-2 py-2">{record.termName || "-"}</td>
                             <td className="px-2 py-2">{record.academicSession || "-"}</td>
                           </tr>

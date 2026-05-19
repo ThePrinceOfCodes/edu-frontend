@@ -28,6 +28,9 @@ import type {
   MessageThread,
   PaginatedResponse,
   GuardianLinkInput,
+  StaffAttendanceListResponse,
+  StaffAttendanceMatrixResponse,
+  StaffAttendanceSummaryResponse,
   PromoteStudentInput,
   QueueJob,
   QueueStatus,
@@ -485,5 +488,14 @@ export const resourceService = {
     return request<{ jobs: QueueJob[] }>(
       `/api/attendant-extractions/queue/jobs${toQueryString({ type, start, end })}`
     )
+  },
+  getStaffAttendance(params?: { school?: string; session?: string; date?: string }) {
+    return request<StaffAttendanceListResponse>(`/api/staff-attendance${toQueryString(params)}`)
+  },
+  getStaffAttendanceSummary(params?: { school?: string; month?: number; year?: number }) {
+    return request<StaffAttendanceSummaryResponse>(`/api/staff-attendance/summary${toQueryString(params)}`)
+  },
+  getStaffAttendanceMatrix(params?: { school?: string; month?: number; year?: number }) {
+    return request<StaffAttendanceMatrixResponse>(`/api/staff-attendance/matrix${toQueryString(params)}`)
   },
 }

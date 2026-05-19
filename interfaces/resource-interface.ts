@@ -202,6 +202,7 @@ export interface Staff {
   employeeId?: string
   designation?: string
   employmentType?: "teacher" | "staff"
+  staffType?: "academic" | "non-academic" | "admin"
   isActive?: boolean
 }
 
@@ -216,6 +217,7 @@ export interface CreateStaffInput {
   trcnRegistered?: boolean
   salarySource?: "1-FTS" | "2-SUBEB" | "3-Private"
   employmentType?: "teacher" | "staff"
+  staffType?: "academic" | "non-academic" | "admin"
   isActive?: boolean
   user: {
     name: string
@@ -236,6 +238,7 @@ export interface UpdateStaffInput {
   trcnRegistered?: boolean | null
   salarySource?: "1-FTS" | "2-SUBEB" | "3-Private" | null
   employmentType?: "teacher" | "staff"
+  staffType?: "academic" | "non-academic" | "admin"
   isActive?: boolean
 }
 
@@ -425,7 +428,8 @@ export interface GuardianStudentResult {
 export interface GuardianAttendanceRecord {
   id: string
   date: string
-  status: "present" | "absent" | "late" | "excused"
+  amStatus: "present" | "absent" | "late" | "excused"
+  pmStatus: "present" | "absent" | "late" | "excused"
   termId?: string | null
   termName?: string | null
   academicSession?: string | null
@@ -648,7 +652,7 @@ export interface AttendanceSummaryRow {
   classCode?: string | null
   className?: string | null
   attendancePercentage: number
-  statusByDate: Record<string, string>
+  statusByDate: Record<string, { am: string; pm: string }>
 }
 
 export interface AttendanceSummary {
@@ -828,4 +832,67 @@ export interface UpdateEventInput {
   allDay?: boolean
   school?: string | null
   color?: string | null
+}
+
+export type StaffAttendanceStatus = "present" | "absent" | "late" | "excused" | null
+
+export interface StaffAttendanceRecord {
+  staffId: string
+  staffName: string
+  designation: string | null
+  staffType: string | null
+  status: StaffAttendanceStatus
+  image: string | null
+  time: string | null
+  location: { lat: number; lng: number } | null
+}
+
+export interface StaffAttendanceListResponse {
+  date: string
+  session: "morning" | "afternoon"
+  records: StaffAttendanceRecord[]
+}
+
+export interface StaffAttendanceDay {
+  date: string
+  morning: StaffAttendanceStatus
+  afternoon: StaffAttendanceStatus
+}
+
+export interface StaffAttendanceSummaryResponse {
+  schoolId: string
+  month: number
+  year: number
+  totalStaff: number
+  days: StaffAttendanceDay[]
+}
+
+export interface StaffAttendanceMatrixDay {
+  date: string
+  label: string
+}
+
+export interface StaffAttendanceMatrixCell {
+  morning: StaffAttendanceStatus
+  afternoon: StaffAttendanceStatus
+}
+
+export interface StaffAttendanceMatrixRow {
+  staffId: string
+  staffName: string
+  employeeId: string | null
+  designation: string | null
+  staffType: string | null
+  totalPresent: number
+  totalAbsent: number
+  cells: Record<string, StaffAttendanceMatrixCell>
+}
+
+export interface StaffAttendanceMatrixResponse {
+  schoolId: string
+  month: number
+  year: number
+  totalStaff: number
+  days: StaffAttendanceMatrixDay[]
+  rows: StaffAttendanceMatrixRow[]
 }

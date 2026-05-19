@@ -20,6 +20,7 @@ import {
   Users,
   ClipboardCheck,
   Settings2,
+  ClipboardList,
 } from "lucide-react"
 import type { AuthUser } from "@/interfaces/auth-interface"
 import { authService } from "@/services/auth-service"
@@ -79,6 +80,12 @@ const navItems = [
     url: "/dashboard/attendance",
     icon: CalendarDays,
     hideForInternal: true,
+    hideForGuardian: true,
+  },
+  {
+    title: "Staff Attendance",
+    url: "/dashboard/staff-attendance",
+    icon: ClipboardList,
     hideForGuardian: true,
   },
   {

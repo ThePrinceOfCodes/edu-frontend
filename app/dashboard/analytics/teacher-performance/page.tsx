@@ -27,12 +27,11 @@ function getAttendanceRate(summary: AttendanceSummary | null) {
   let absent = 0
   summary.rows.forEach((row) => {
     summary.days.forEach((day) => {
-      const status = row.statusByDate[day.date]
-      if (status === "present") {
-        present += 1
-      } else if (status === "absent") {
-        absent += 1
-      }
+      const s = row.statusByDate[day.date]
+      if (s?.am === "present") present += 1
+      else if (s?.am === "absent") absent += 1
+      if (s?.pm === "present") present += 1
+      else if (s?.pm === "absent") absent += 1
     })
   })
 

@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server"
 
-import { getPublicBaseUrl } from "@/lib/env"
+import { buildBackendUrl } from "@/lib/env"
 
 export async function POST(request: Request) {
   const formData = await request.formData()
-  const backendUrl = new URL("v1/attendant-extractions/test/pi", getPublicBaseUrl()).toString()
+  const backendUrl = buildBackendUrl("v1/attendant-extractions/test/pi").toString()
 
   const response = await fetch(backendUrl, {
     method: "POST",

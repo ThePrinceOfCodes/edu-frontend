@@ -452,7 +452,7 @@ export const resourceService = {
   getExtractionById(id: string) {
     return request<AttendantExtraction>(`/api/attendant-extractions/${id}`)
   },
-  correctExtraction(id: string, input: Record<string, any>) {
+  correctExtraction(id: string, input: Record<string, unknown>) {
     return request<AttendantExtraction>(`/api/attendant-extractions/${id}/correct`, {
       method: "PATCH",
       body: input,

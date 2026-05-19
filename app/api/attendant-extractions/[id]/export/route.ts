@@ -2,7 +2,7 @@ import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
 
 import { AUTH_TOKEN_COOKIE } from "@/lib/auth"
-import { getPublicBaseUrl } from "@/lib/env"
+import { buildBackendUrl } from "@/lib/env"
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -12,7 +12,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 })
   }
 
-  const url = new URL(`v1/attendant-extractions/${id}/export`, getPublicBaseUrl())
+  const url = buildBackendUrl(`v1/attendant-extractions/${id}/export`)
   const incomingUrl = new URL(request.url)
   incomingUrl.searchParams.forEach((value, key) => url.searchParams.set(key, value))
 

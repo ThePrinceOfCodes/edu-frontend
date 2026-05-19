@@ -682,6 +682,7 @@ export type AttendantExtractionStatus =
   | "ocr_completed"
   | "llm_extracted"
   | "validation_failed"
+  | "needs_review"
   | "pending_review"
   | "corrected"
   | "approved"
@@ -699,9 +700,9 @@ export interface ExtractionProcessingMeta {
   stage?: string
   retryCount?: number
   promptVersion?: string
-  ocrSummary?: Record<string, any>
+  ocrSummary?: Record<string, unknown>
   lastRateLimitError?: string
-  [key: string]: any
+  [key: string]: unknown
 }
 
 export interface AttendantExtraction {
@@ -709,6 +710,7 @@ export interface AttendantExtraction {
   _id?: string
   createdBy?: string | null
   schoolId: string
+  classId?: string
   termId: string
   academicSessionId: string
   startDate: string
@@ -717,15 +719,15 @@ export interface AttendantExtraction {
   originalImagePath: string
   mimeType: string
   preprocessedImagePath?: string
-  rawOcrJson?: Record<string, any>
+  rawOcrJson?: Record<string, unknown>
   rawText?: string
-  parsedJson?: Record<string, any>
-  documentAiRawOutput?: Record<string, any>
+  parsedJson?: Record<string, unknown>
+  documentAiRawOutput?: Record<string, unknown>
   documentAiText?: string
-  documentAiLayoutSummary?: Record<string, any>
+  documentAiLayoutSummary?: Record<string, unknown>
   llmRawResponse?: string
-  llmExtractedOutput?: Record<string, any>
-  humanCorrectedOutput?: Record<string, any> | null
+  llmExtractedOutput?: Record<string, unknown>
+  humanCorrectedOutput?: Record<string, unknown> | null
   validationErrors?: string[]
   provider?: string
   model?: string
@@ -768,7 +770,7 @@ export interface QueueStatus {
 export interface QueueJob {
   id?: string
   name: string
-  data: Record<string, any>
+  data: Record<string, unknown>
   progress: number
   attemptsMade: number
   finishedOn?: number

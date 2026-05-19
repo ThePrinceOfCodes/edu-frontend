@@ -2,23 +2,12 @@ import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
 
 import { AUTH_TOKEN_COOKIE } from "@/lib/auth"
-import { getPublicBaseUrl } from "@/lib/env"
+import { buildBackendUrl } from "@/lib/env"
 
 type ProxyMethod = "GET" | "POST" | "PATCH" | "DELETE"
 
 function buildUrl(path: string, request?: Request) {
-  const baseUrl = getPublicBaseUrl()
-  const base = new URL(baseUrl)
-
-  let normalizedPath = path.replace(/^\/+/, "")
-  const basePath = base.pathname.replace(/\/+$/, "")
-  const baseEndsWithV1 = /\/v1$/i.test(basePath)
-
-  if (baseEndsWithV1 && /^v1\//i.test(normalizedPath)) {
-    normalizedPath = normalizedPath.replace(/^v1\//i, "")
-  }
-
-  const url = new URL(normalizedPath, baseUrl)
+  const url = buildBackendUrl(path)
 
   if (request) {
     const incomingUrl = new URL(request.url)

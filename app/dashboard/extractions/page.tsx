@@ -14,6 +14,7 @@ const statusLabels: Record<string, string> = {
   ocr_completed: "OCR Complete",
   llm_extracted: "LLM Extracted",
   validation_failed: "Validation Failed",
+  needs_review: "Needs Review",
   pending_review: "Pending Review",
   corrected: "Corrected",
   approved: "Approved",
@@ -23,6 +24,7 @@ const statusLabels: Record<string, string> = {
 
 const statusTone: Record<string, string> = {
   pending_review: "border-amber-500/30 bg-amber-500/10 text-amber-700",
+  needs_review: "border-orange-500/30 bg-orange-500/10 text-orange-700",
   validation_failed: "border-red-500/30 bg-red-500/10 text-red-700",
   approved: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700",
   corrected: "border-sky-500/30 bg-sky-500/10 text-sky-700",
@@ -91,8 +93,9 @@ export default function ExtractionsPage() {
   const termById = useMemo(() => new Map(terms.map((item) => [item._id ?? item.id ?? "", item])), [terms])
 
   function getDocumentClassName(item: AttendantExtraction) {
-    const metadataClass = (item.rawOcrJson as any)?.document_metadata?.class
-    return metadataClass || (item.parsedJson as any)?.className || (item.parsedJson as any)?.class || "-"
+    const metadata = item.rawOcrJson?.document_metadata as { class?: string } | undefined
+    const parsedJson = item.parsedJson as { className?: string; class?: string } | undefined
+    return metadata?.class || parsedJson?.className || parsedJson?.class || "-"
   }
 
   return (

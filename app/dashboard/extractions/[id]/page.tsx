@@ -12,10 +12,32 @@ import { resourceService } from "@/services/resource-service"
 
 type WeekKey = "week_1" | "week_2" | "week_3" | "week_4" | "week_5"
 type WeekState = "present" | "absent" | "unknown"
+type ExtractionStudent = Record<string, unknown> & {
+  attendance?: Partial<Record<WeekKey, unknown>>
+}
+type ExtractionSource = Record<string, unknown> & {
+  students?: unknown
+}
+type CorrectionTableRow = {
+  row_number: number | string
+  student_name: string
+  admission_number: string
+  uncertain_cells: string
+} & Partial<Record<WeekKey, WeekState>>
+type DocumentMetadata = {
+  class?: string
+  class_id?: string
+  school_name?: string
+  term?: string
+  teacher_name?: string
+}
+type ParsedExtractionJson = {
+  classId?: string
+}
 
 const WEEK_KEYS: WeekKey[] = ["week_1", "week_2", "week_3", "week_4", "week_5"]
 
-function weekValueToState(value?: string): WeekState {
+function weekValueToState(value?: unknown): WeekState {
   const normalized = String(value || "").trim().toUpperCase()
   if (!normalized) return "unknown"
   if (/^P(\s+P){4}$/.test(normalized)) return "present"
@@ -32,31 +54,36 @@ function weekStateToValue(state: WeekState) {
 }
 
 function getStudentRows(extraction: AttendantExtraction | null) {
-  const source = extraction?.humanCorrectedOutput || extraction?.llmExtractedOutput || extraction?.rawOcrJson
-  const students = (source as any)?.students
+  const source = (extraction?.humanCorrectedOutput || extraction?.llmExtractedOutput || extraction?.rawOcrJson) as
+    | ExtractionSource
+    | undefined
+  const students = source?.students
 
   if (!Array.isArray(students)) {
-    return [] as Array<Record<string, any>>
+    return [] as ExtractionStudent[]
   }
 
-  return students
+  return students.filter((student): student is ExtractionStudent => typeof student === "object" && student !== null)
 }
 
-function buildRow(student: Record<string, any>, rowNumber: number) {
+function buildRow(student: ExtractionStudent, rowNumber: number): CorrectionTableRow {
+  const attendance = typeof student.attendance === "object" && student.attendance ? student.attendance : {}
+  const parsedRowNumber = student.row_number ?? student.rowNumber
+
   return {
-    row_number: student.row_number ?? student.rowNumber ?? rowNumber,
-    student_name: student.student_name ?? student.studentName ?? "",
-    admission_number: student.admission_number ?? student.admissionNumber ?? "",
-    week_1: weekValueToState(student.attendance?.week_1),
-    week_2: weekValueToState(student.attendance?.week_2),
-    week_3: weekValueToState(student.attendance?.week_3),
-    week_4: weekValueToState(student.attendance?.week_4),
-    week_5: weekValueToState(student.attendance?.week_5),
-    uncertain_cells: Array.isArray(student.uncertain_cells) ? student.uncertain_cells.join(", ") : "",
+    row_number: typeof parsedRowNumber === "number" || typeof parsedRowNumber === "string" ? parsedRowNumber : rowNumber,
+    student_name: String(student.student_name ?? student.studentName ?? ""),
+    admission_number: String(student.admission_number ?? student.admissionNumber ?? ""),
+    week_1: weekValueToState(attendance.week_1),
+    week_2: weekValueToState(attendance.week_2),
+    week_3: weekValueToState(attendance.week_3),
+    week_4: weekValueToState(attendance.week_4),
+    week_5: weekValueToState(attendance.week_5),
+    uncertain_cells: Array.isArray(student.uncertain_cells) ? student.uncertain_cells.map(String).join(", ") : "",
   }
 }
 
-function cloneLastRow(row: Record<string, any> | undefined, rowNumber: number, weeks: WeekKey[]) {
+function cloneLastRow(row: CorrectionTableRow | undefined, rowNumber: number, weeks: WeekKey[]): CorrectionTableRow {
   const base = {
     row_number: rowNumber,
     student_name: "",
@@ -65,12 +92,46 @@ function cloneLastRow(row: Record<string, any> | undefined, rowNumber: number, w
   }
 
   if (!row) {
-    const weekDefaults: Record<string, string> = {}
+    const weekDefaults: Partial<Record<WeekKey, WeekState>> = {}
     weeks.forEach((w) => { weekDefaults[w] = "unknown" })
     return { ...base, ...weekDefaults }
   }
 
   return { ...row, row_number: rowNumber }
+}
+
+function getFileNameFromPath(value?: string | null) {
+  const normalized = String(value || "").replace(/\\/g, "/").trim()
+  if (!normalized) return null
+
+  try {
+    const url = new URL(normalized)
+    return url.pathname.split("/").filter(Boolean).pop() ?? null
+  } catch {
+    return normalized.split("/").filter(Boolean).pop() ?? null
+  }
+}
+
+function getExtractionImageUrl(extraction: AttendantExtraction | null) {
+  const fileName =
+    getFileNameFromPath(extraction?.imagePath) ||
+    getFileNameFromPath(extraction?.originalImagePath) ||
+    getFileNameFromPath(extraction?.imageUrl)
+
+  if (fileName) {
+    return `/api/uploads/attendant-extractions/${encodeURIComponent(fileName)}`
+  }
+
+  return extraction?.imageUrl ?? null
+}
+
+function getDocumentMetadata(extraction: AttendantExtraction | null) {
+  const metadata = extraction?.rawOcrJson?.document_metadata
+  return typeof metadata === "object" && metadata !== null ? metadata as DocumentMetadata : {}
+}
+
+function getParsedExtractionJson(extraction: AttendantExtraction | null) {
+  return extraction?.parsedJson as ParsedExtractionJson | undefined
 }
 
 export default function ExtractionDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -81,10 +142,11 @@ export default function ExtractionDetailPage({ params }: { params: Promise<{ id:
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [exporting, setExporting] = useState(false)
-  const [tableRows, setTableRows] = useState<Array<Record<string, any>>>([])
+  const [tableRows, setTableRows] = useState<CorrectionTableRow[]>([])
   const [school, setSchool] = useState<School | null>(null)
   const [term, setTerm] = useState<Term | null>(null)
   const [classes, setClasses] = useState<Class[]>([])
+  const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null)
   const [activeWeeks, setActiveWeeks] = useState<WeekKey[]>(WEEK_KEYS)
   const [weekLabels, setWeekLabels] = useState<Record<WeekKey, string>>({
     week_1: "WEEK 1",
@@ -121,6 +183,7 @@ export default function ExtractionDetailPage({ params }: { params: Promise<{ id:
       try {
         const result = await resourceService.getExtractionById(id)
         setItem(result)
+        setTableRows(getStudentRows(result).map((student, index) => buildRow(student, index + 1)))
         const [schoolResult, termResult, classResult] = await Promise.all([
           resourceService.getSchoolById(result.schoolId).catch(() => null),
           resourceService
@@ -143,23 +206,23 @@ export default function ExtractionDetailPage({ params }: { params: Promise<{ id:
     void loadExtraction()
   }, [id])
 
-  useEffect(() => {
-    if (!item) return
-    setTableRows(getStudentRows(item).map((student, index) => buildRow(student, index + 1)))
-  }, [item])
-
   const canAct = useMemo(() => Boolean(item), [item])
-  const imageUrl = item?.imageUrl ?? null
-  const documentMetadata = (item?.rawOcrJson as any)?.document_metadata || {}
+  const imageUrl = getExtractionImageUrl(item)
+  const imageLoadFailed = Boolean(imageUrl && failedImageUrl === imageUrl)
+  const isPdfSource = Boolean(item?.mimeType?.toLowerCase().includes("pdf") || imageUrl?.toLowerCase().split("?")[0]?.endsWith(".pdf"))
+  const piError = item?.processingMeta?.piError
+  const extractionError = item?.error || (typeof piError === "string" ? piError : null)
+  const documentMetadata = getDocumentMetadata(item)
+  const parsedExtractionJson = getParsedExtractionJson(item)
   const documentClass = useMemo(() => {
     const metadataClass = documentMetadata.class
     if (metadataClass) return metadataClass
-    const classId = documentMetadata.class_id || (item?.parsedJson as any)?.classId
+    const classId = documentMetadata.class_id || parsedExtractionJson?.classId
     if (classId) {
       return classes.find((entry) => (entry._id ?? entry.id) === classId)?.name ?? classId
     }
     return "-"
-  }, [classes, documentMetadata.class, documentMetadata.class_id, item?.parsedJson])
+  }, [classes, documentMetadata.class, documentMetadata.class_id, parsedExtractionJson?.classId])
 
   function updateRow(index: number, key: WeekKey, value: WeekState) {
     setTableRows((current) =>
@@ -178,13 +241,13 @@ export default function ExtractionDetailPage({ params }: { params: Promise<{ id:
     const source = item?.humanCorrectedOutput || item?.llmExtractedOutput || item?.rawOcrJson || {}
 
     return {
-      ...(source as Record<string, any>),
+      ...(source as Record<string, unknown>),
       week_labels: weekLabels,
       active_weeks: activeWeeks,
       students: tableRows.map((row, index) => {
         const attendance: Record<string, string> = {}
         activeWeeks.forEach((week) => {
-          attendance[week] = weekStateToValue(row[week] as WeekState)
+          attendance[week] = weekStateToValue(row[week] ?? "unknown")
         })
 
         return {
@@ -209,6 +272,7 @@ export default function ExtractionDetailPage({ params }: { params: Promise<{ id:
     try {
       const updated = await resourceService.correctExtraction(id, buildPayload())
       setItem(updated)
+      setTableRows(getStudentRows(updated).map((student, index) => buildRow(student, index + 1)))
       router.refresh()
     } catch (actionError) {
       setError(actionError instanceof Error ? actionError.message : "Unable to save correction")
@@ -223,8 +287,10 @@ export default function ExtractionDetailPage({ params }: { params: Promise<{ id:
     setError(null)
 
     try {
+      await resourceService.correctExtraction(id, buildPayload())
       const updated = await resourceService.approveExtraction(id)
       setItem(updated)
+      setTableRows(getStudentRows(updated).map((student, index) => buildRow(student, index + 1)))
       router.refresh()
     } catch (actionError) {
       setError(actionError instanceof Error ? actionError.message : "Unable to approve extraction")
@@ -274,28 +340,44 @@ export default function ExtractionDetailPage({ params }: { params: Promise<{ id:
               <CardTitle>Source Image</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
-              {imageUrl ? (
+              {imageUrl && !imageLoadFailed ? (
                 <>
-                  <TransformWrapper
-                    initialScale={1}
-                    minScale={1}
-                    maxScale={4}
-                    limitToBounds={false}
-                    centerZoomedOut
-                    centerOnInit
-                    wheel={{ step: 0.1, touchPadDisabled: false }}
-                    panning={{ disabled: false, allowLeftClickPan: true, allowRightClickPan: true, velocityDisabled: false }}
-                    trackPadPanning={{ disabled: false }}
-                    doubleClick={{ mode: "reset", step: 1 }}
-                  >
-                    <TransformComponent
-                      wrapperStyle={{ width: "100%", height: "auto", margin: 0 }}
+                  {isPdfSource ? (
+                    <iframe
+                      src={imageUrl}
+                      title="Extraction source"
+                      className="h-[720px] w-full rounded-md border"
+                    />
+                  ) : (
+                    <TransformWrapper
+                      initialScale={1}
+                      minScale={1}
+                      maxScale={4}
+                      limitToBounds={false}
+                      centerZoomedOut
+                      centerOnInit
+                      wheel={{ step: 0.1, touchPadDisabled: false }}
+                      panning={{ disabled: false, allowLeftClickPan: true, allowRightClickPan: true, velocityDisabled: false }}
+                      trackPadPanning={{ disabled: false }}
+                      doubleClick={{ mode: "reset", step: 1 }}
                     >
-                      <img src={imageUrl} alt="Extraction source" className="block h-auto w-full min-w-[720px]" />
-                    </TransformComponent>
-                  </TransformWrapper>
-                  <p className="text-xs text-muted-foreground">Use mouse wheel to zoom, drag to pan, and double-click to reset.</p>
+                      <TransformComponent
+                        wrapperStyle={{ width: "100%", height: "auto", margin: 0 }}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={imageUrl}
+                          alt="Extraction source"
+                          className="block h-auto w-full min-w-[720px]"
+                          onError={() => setFailedImageUrl(imageUrl)}
+                        />
+                      </TransformComponent>
+                    </TransformWrapper>
+                  )}
+                  {isPdfSource ? null : <p className="text-xs text-muted-foreground">Use mouse wheel to zoom, drag to pan, and double-click to reset.</p>}
                 </>
+              ) : imageUrl && imageLoadFailed ? (
+                <p className="text-sm text-destructive">The source image could not be loaded.</p>
               ) : (
                 <p className="text-sm text-muted-foreground">No image available.</p>
               )}
@@ -325,6 +407,11 @@ export default function ExtractionDetailPage({ params }: { params: Promise<{ id:
               {item.validationErrors?.length ? (
                 <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-destructive">
                   {item.validationErrors.map((message) => <p key={message}>{message}</p>)}
+                </div>
+              ) : null}
+              {extractionError ? (
+                <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-destructive">
+                  <p>{extractionError}</p>
                 </div>
               ) : null}
             </CardContent>

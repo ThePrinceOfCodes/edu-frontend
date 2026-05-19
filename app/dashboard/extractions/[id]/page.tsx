@@ -11,19 +11,21 @@ import type { AttendantExtraction, Class, School, Term } from "@/interfaces/reso
 import { resourceService } from "@/services/resource-service"
 
 type WeekKey = "week_1" | "week_2" | "week_3" | "week_4" | "week_5"
-type WeekState = "present" | "absent" | "unknown"
+type AttendanceToken = "v" | ".." | ".\\" | "\\." | "_" | "uncertain"
 type ExtractionStudent = Record<string, unknown> & {
   attendance?: Partial<Record<WeekKey, unknown>>
 }
 type ExtractionSource = Record<string, unknown> & {
   students?: unknown
+  active_weeks?: unknown
+  week_labels?: unknown
 }
 type CorrectionTableRow = {
   row_number: number | string
   student_name: string
   admission_number: string
   uncertain_cells: string
-} & Partial<Record<WeekKey, WeekState>>
+} & Partial<Record<WeekKey, AttendanceToken[]>>
 type DocumentMetadata = {
   class?: string
   class_id?: string
@@ -36,27 +38,75 @@ type ParsedExtractionJson = {
 }
 
 const WEEK_KEYS: WeekKey[] = ["week_1", "week_2", "week_3", "week_4", "week_5"]
+const DAY_LABELS = ["M", "T", "W", "Th", "F"] as const
+const DEFAULT_WEEK_LABELS: Record<WeekKey, string> = {
+  week_1: "WEEK 1",
+  week_2: "WEEK 2",
+  week_3: "WEEK 3",
+  week_4: "WEEK 4",
+  week_5: "WEEK 5",
+}
+const ATTENDANCE_TOKEN_OPTIONS: Array<{ value: AttendanceToken; label: string }> = [
+  { value: "v", label: "v" },
+  { value: "..", label: ".." },
+  { value: ".\\", label: ".\\" },
+  { value: "\\.", label: "\\." },
+  { value: "_", label: "_" },
+  { value: "uncertain", label: "uncertain" },
+]
 
-function weekValueToState(value?: unknown): WeekState {
-  const normalized = String(value || "").trim().toUpperCase()
-  if (!normalized) return "unknown"
-  if (/^P(\s+P){4}$/.test(normalized)) return "present"
-  if (/^A(\s+A){4}$/.test(normalized)) return "absent"
-  if (normalized.includes("P")) return "present"
-  if (normalized.includes("A")) return "absent"
-  return "unknown"
+function isWeekKey(value: unknown): value is WeekKey {
+  return WEEK_KEYS.includes(value as WeekKey)
 }
 
-function weekStateToValue(state: WeekState) {
-  if (state === "present") return "P P P P P"
-  if (state === "absent") return "A A A A A"
-  return "- - - - -"
+function normalizeAttendanceToken(value?: unknown): AttendanceToken {
+  const normalized = String(value ?? "").trim()
+  const lowered = normalized.toLowerCase()
+
+  if (!normalized || normalized === "-" || normalized === "_") return "_"
+  if (["v", "p", "present", "✓", "\/", "/", "\\"].includes(lowered)) return "v"
+  if (["a", "x", "o", "absent", ".."].includes(lowered) || /^\.{1,3}$/.test(normalized)) return ".."
+  if (normalized === ".\\") return ".\\"
+  if (normalized === "\\.") return "\\."
+  if (lowered === "uncertain") return "uncertain"
+  return "uncertain"
+}
+
+function parseWeekTokens(value?: unknown): AttendanceToken[] {
+  const tokens = String(value ?? "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map(normalizeAttendanceToken)
+    .slice(0, DAY_LABELS.length)
+
+  while (tokens.length < DAY_LABELS.length) {
+    tokens.push("_")
+  }
+
+  return tokens
+}
+
+function formatWeekTokens(tokens?: AttendanceToken[]) {
+  return parseWeekTokens((tokens || []).join(" ")).join(" ")
+}
+
+function attendanceTokenClass(token: AttendanceToken) {
+  if (token === "v") return "border-emerald-300 bg-emerald-50 text-emerald-800"
+  if (token === "..") return "border-rose-300 bg-rose-50 text-rose-800"
+  if (token === ".\\" || token === "\\.") return "border-amber-300 bg-amber-50 text-amber-800"
+  if (token === "uncertain") return "border-destructive/40 bg-destructive/10 text-destructive"
+  return "border-border bg-muted text-muted-foreground"
+}
+
+function getExtractionSource(extraction: AttendantExtraction | null) {
+  return (extraction?.humanCorrectedOutput || extraction?.llmExtractedOutput || extraction?.rawOcrJson) as
+    | ExtractionSource
+    | undefined
 }
 
 function getStudentRows(extraction: AttendantExtraction | null) {
-  const source = (extraction?.humanCorrectedOutput || extraction?.llmExtractedOutput || extraction?.rawOcrJson) as
-    | ExtractionSource
-    | undefined
+  const source = getExtractionSource(extraction)
   const students = source?.students
 
   if (!Array.isArray(students)) {
@@ -69,18 +119,18 @@ function getStudentRows(extraction: AttendantExtraction | null) {
 function buildRow(student: ExtractionStudent, rowNumber: number): CorrectionTableRow {
   const attendance = typeof student.attendance === "object" && student.attendance ? student.attendance : {}
   const parsedRowNumber = student.row_number ?? student.rowNumber
-
-  return {
+  const row: CorrectionTableRow = {
     row_number: typeof parsedRowNumber === "number" || typeof parsedRowNumber === "string" ? parsedRowNumber : rowNumber,
     student_name: String(student.student_name ?? student.studentName ?? ""),
     admission_number: String(student.admission_number ?? student.admissionNumber ?? ""),
-    week_1: weekValueToState(attendance.week_1),
-    week_2: weekValueToState(attendance.week_2),
-    week_3: weekValueToState(attendance.week_3),
-    week_4: weekValueToState(attendance.week_4),
-    week_5: weekValueToState(attendance.week_5),
     uncertain_cells: Array.isArray(student.uncertain_cells) ? student.uncertain_cells.map(String).join(", ") : "",
   }
+
+  WEEK_KEYS.forEach((week) => {
+    row[week] = parseWeekTokens(attendance[week])
+  })
+
+  return row
 }
 
 function cloneLastRow(row: CorrectionTableRow | undefined, rowNumber: number, weeks: WeekKey[]): CorrectionTableRow {
@@ -92,12 +142,42 @@ function cloneLastRow(row: CorrectionTableRow | undefined, rowNumber: number, we
   }
 
   if (!row) {
-    const weekDefaults: Partial<Record<WeekKey, WeekState>> = {}
-    weeks.forEach((w) => { weekDefaults[w] = "unknown" })
+    const weekDefaults: Partial<Record<WeekKey, AttendanceToken[]>> = {}
+    weeks.forEach((w) => { weekDefaults[w] = parseWeekTokens() })
     return { ...base, ...weekDefaults }
   }
 
-  return { ...row, row_number: rowNumber }
+  const nextRow: CorrectionTableRow = { ...row, row_number: rowNumber }
+  WEEK_KEYS.forEach((week) => {
+    nextRow[week] = parseWeekTokens(row[week]?.join(" "))
+  })
+  return nextRow
+}
+
+function getActiveWeeks(extraction: AttendantExtraction | null): WeekKey[] {
+  const source = getExtractionSource(extraction)
+  const configuredWeeks = Array.isArray(source?.active_weeks) ? source.active_weeks.filter(isWeekKey) : []
+  if (configuredWeeks.length) return configuredWeeks
+
+  const detectedWeeks = new Set<WeekKey>()
+  getStudentRows(extraction).forEach((student) => {
+    const attendance = typeof student.attendance === "object" && student.attendance ? student.attendance : {}
+    Object.keys(attendance).forEach((key) => {
+      if (isWeekKey(key)) detectedWeeks.add(key)
+    })
+  })
+
+  return detectedWeeks.size ? WEEK_KEYS.filter((week) => detectedWeeks.has(week)) : WEEK_KEYS
+}
+
+function getWeekLabels(extraction: AttendantExtraction | null): Record<WeekKey, string> {
+  const source = getExtractionSource(extraction)
+  const labels = typeof source?.week_labels === "object" && source.week_labels ? source.week_labels as Partial<Record<WeekKey, unknown>> : {}
+
+  return WEEK_KEYS.reduce((current, week) => {
+    current[week] = String(labels[week] || DEFAULT_WEEK_LABELS[week])
+    return current
+  }, { ...DEFAULT_WEEK_LABELS })
 }
 
 function getFileNameFromPath(value?: string | null) {
@@ -148,13 +228,7 @@ export default function ExtractionDetailPage({ params }: { params: Promise<{ id:
   const [classes, setClasses] = useState<Class[]>([])
   const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null)
   const [activeWeeks, setActiveWeeks] = useState<WeekKey[]>(WEEK_KEYS)
-  const [weekLabels, setWeekLabels] = useState<Record<WeekKey, string>>({
-    week_1: "WEEK 1",
-    week_2: "WEEK 2",
-    week_3: "WEEK 3",
-    week_4: "WEEK 4",
-    week_5: "WEEK 5",
-  })
+  const [weekLabels, setWeekLabels] = useState<Record<WeekKey, string>>(DEFAULT_WEEK_LABELS)
 
   function deleteRow(index: number) {
     setTableRows((current) => current.filter((_, i) => i !== index))
@@ -183,6 +257,8 @@ export default function ExtractionDetailPage({ params }: { params: Promise<{ id:
       try {
         const result = await resourceService.getExtractionById(id)
         setItem(result)
+        setActiveWeeks(getActiveWeeks(result))
+        setWeekLabels(getWeekLabels(result))
         setTableRows(getStudentRows(result).map((student, index) => buildRow(student, index + 1)))
         const [schoolResult, termResult, classResult] = await Promise.all([
           resourceService.getSchoolById(result.schoolId).catch(() => null),
@@ -224,9 +300,14 @@ export default function ExtractionDetailPage({ params }: { params: Promise<{ id:
     return "-"
   }, [classes, documentMetadata.class, documentMetadata.class_id, parsedExtractionJson?.classId])
 
-  function updateRow(index: number, key: WeekKey, value: WeekState) {
+  function updateDailyToken(index: number, key: WeekKey, dayIndex: number, value: AttendanceToken) {
     setTableRows((current) =>
-      current.map((row, rowIndex) => (rowIndex === index ? { ...row, [key]: value } : row))
+      current.map((row, rowIndex) => {
+        if (rowIndex !== index) return row
+        const tokens = parseWeekTokens(row[key]?.join(" "))
+        tokens[dayIndex] = value
+        return { ...row, [key]: tokens }
+      })
     )
   }
 
@@ -238,7 +319,7 @@ export default function ExtractionDetailPage({ params }: { params: Promise<{ id:
   }
 
   function buildPayload() {
-    const source = item?.humanCorrectedOutput || item?.llmExtractedOutput || item?.rawOcrJson || {}
+    const source = getExtractionSource(item) || {}
 
     return {
       ...(source as Record<string, unknown>),
@@ -247,7 +328,7 @@ export default function ExtractionDetailPage({ params }: { params: Promise<{ id:
       students: tableRows.map((row, index) => {
         const attendance: Record<string, string> = {}
         activeWeeks.forEach((week) => {
-          attendance[week] = weekStateToValue(row[week] ?? "unknown")
+          attendance[week] = formatWeekTokens(row[week])
         })
 
         return {
@@ -272,6 +353,7 @@ export default function ExtractionDetailPage({ params }: { params: Promise<{ id:
     try {
       const updated = await resourceService.correctExtraction(id, buildPayload())
       setItem(updated)
+      setActiveWeeks(getActiveWeeks(updated))
       setTableRows(getStudentRows(updated).map((student, index) => buildRow(student, index + 1)))
       router.refresh()
     } catch (actionError) {
@@ -290,6 +372,7 @@ export default function ExtractionDetailPage({ params }: { params: Promise<{ id:
       await resourceService.correctExtraction(id, buildPayload())
       const updated = await resourceService.approveExtraction(id)
       setItem(updated)
+      setActiveWeeks(getActiveWeeks(updated))
       setTableRows(getStudentRows(updated).map((student, index) => buildRow(student, index + 1)))
       router.refresh()
     } catch (actionError) {
@@ -451,14 +534,14 @@ export default function ExtractionDetailPage({ params }: { params: Promise<{ id:
                 <table className="min-w-full text-left text-sm">
                   <thead className="sticky top-0 bg-muted/70 text-muted-foreground">
                     <tr>
-                      <th className="w-10 px-2 py-2 font-medium"></th>
-                      <th className="px-3 py-2 font-medium">Student</th>
-                      <th className="px-3 py-2 font-medium">Admission</th>
+                      <th rowSpan={2} className="w-10 px-2 py-2 font-medium"></th>
+                      <th rowSpan={2} className="px-3 py-2 font-medium">Student</th>
+                      <th rowSpan={2} className="px-3 py-2 font-medium">Admission</th>
                       {activeWeeks.map((week) => (
-                        <th key={week} className="px-2 py-2 font-medium min-w-[120px]">
-                          <div className="flex items-center gap-1">
+                        <th key={week} colSpan={DAY_LABELS.length} className="border-l px-2 py-2 text-center font-medium">
+                          <div className="flex items-center justify-center gap-1">
                             <input
-                              className="w-20 rounded border bg-background px-1 py-0.5 text-xs font-medium"
+                              className="w-24 rounded border bg-background px-1 py-0.5 text-center text-xs font-medium"
                               value={weekLabels[week]}
                               onChange={(e) => updateWeekLabel(week, e.target.value)}
                             />
@@ -473,7 +556,16 @@ export default function ExtractionDetailPage({ params }: { params: Promise<{ id:
                           </div>
                         </th>
                       ))}
-                      <th className="px-3 py-2 font-medium">Uncertain</th>
+                      <th rowSpan={2} className="px-3 py-2 font-medium">Uncertain</th>
+                    </tr>
+                    <tr>
+                      {activeWeeks.flatMap((week) =>
+                        DAY_LABELS.map((day) => (
+                          <th key={`${week}-${day}`} className="border-l px-1 py-1 text-center text-xs font-medium">
+                            {day}
+                          </th>
+                        ))
+                      )}
                     </tr>
                   </thead>
                   <tbody>
@@ -512,27 +604,26 @@ export default function ExtractionDetailPage({ params }: { params: Promise<{ id:
                             }}
                           />
                         </td>
-                        {activeWeeks.map((weekKey) => {
-                          const state = row[weekKey] as WeekState
-                          return (
-                            <td key={weekKey} className="px-2 py-2">
-                              <div className="inline-flex rounded-md border bg-background p-0.5">
-                                {(["present", "absent", "unknown"] as WeekState[]).map((choice) => (
-                                  <button
-                                    key={choice}
-                                    type="button"
-                                    onClick={() => updateRow(index, weekKey, choice)}
-                                    className={[
-                                      "rounded px-1.5 py-0.5 text-xs font-medium",
-                                      state === choice ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted",
-                                    ].join(" ")}
-                                  >
-                                    {choice === "present" ? "P" : choice === "absent" ? "A" : "-"}
-                                  </button>
+                        {activeWeeks.flatMap((weekKey) => {
+                          const tokens = parseWeekTokens(row[weekKey]?.join(" "))
+
+                          return tokens.map((token, dayIndex) => (
+                            <td key={`${weekKey}-${dayIndex}`} className="border-l px-1 py-2">
+                              <select
+                                aria-label={`${weekLabels[weekKey]} ${DAY_LABELS[dayIndex]} attendance for ${row.student_name || `row ${index + 1}`}`}
+                                className={[
+                                  "h-8 w-16 rounded-md border px-1 text-center text-xs font-semibold outline-none transition focus:ring-2 focus:ring-ring",
+                                  attendanceTokenClass(token),
+                                ].join(" ")}
+                                value={token}
+                                onChange={(event) => updateDailyToken(index, weekKey, dayIndex, normalizeAttendanceToken(event.target.value))}
+                              >
+                                {ATTENDANCE_TOKEN_OPTIONS.map((option) => (
+                                  <option key={option.value} value={option.value}>{option.label}</option>
                                 ))}
-                              </div>
+                              </select>
                             </td>
-                          )
+                          ))
                         })}
                         <td className="px-3 py-2">
                           <input

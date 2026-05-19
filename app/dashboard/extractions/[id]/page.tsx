@@ -99,6 +99,13 @@ function attendanceTokenClass(token: AttendanceToken) {
   return "border-border bg-muted text-muted-foreground"
 }
 
+function weekBoundaryClass(dayIndex: number) {
+  return [
+    dayIndex === 0 ? "border-l-2 border-l-primary/40" : "border-l",
+    dayIndex === DAY_LABELS.length - 1 ? "border-r-2 border-r-primary/40" : "",
+  ].join(" ")
+}
+
 function getExtractionSource(extraction: AttendantExtraction | null) {
   return (extraction?.humanCorrectedOutput || extraction?.llmExtractedOutput || extraction?.rawOcrJson) as
     | ExtractionSource
@@ -133,25 +140,17 @@ function buildRow(student: ExtractionStudent, rowNumber: number): CorrectionTabl
   return row
 }
 
-function cloneLastRow(row: CorrectionTableRow | undefined, rowNumber: number, weeks: WeekKey[]): CorrectionTableRow {
+function createBlankRow(rowNumber: number, weeks: WeekKey[]): CorrectionTableRow {
   const base = {
     row_number: rowNumber,
     student_name: "",
     admission_number: "",
     uncertain_cells: "",
   }
+  const weekDefaults: Partial<Record<WeekKey, AttendanceToken[]>> = {}
 
-  if (!row) {
-    const weekDefaults: Partial<Record<WeekKey, AttendanceToken[]>> = {}
-    weeks.forEach((w) => { weekDefaults[w] = parseWeekTokens() })
-    return { ...base, ...weekDefaults }
-  }
-
-  const nextRow: CorrectionTableRow = { ...row, row_number: rowNumber }
-  WEEK_KEYS.forEach((week) => {
-    nextRow[week] = parseWeekTokens(row[week]?.join(" "))
-  })
-  return nextRow
+  weeks.forEach((w) => { weekDefaults[w] = parseWeekTokens() })
+  return { ...base, ...weekDefaults }
 }
 
 function getActiveWeeks(extraction: AttendantExtraction | null): WeekKey[] {
@@ -299,6 +298,10 @@ export default function ExtractionDetailPage({ params }: { params: Promise<{ id:
     }
     return "-"
   }, [classes, documentMetadata.class, documentMetadata.class_id, parsedExtractionJson?.classId])
+  const nextAvailableWeek = useMemo(
+    () => WEEK_KEYS.find((week) => !activeWeeks.includes(week)) ?? null,
+    [activeWeeks]
+  )
 
   function updateDailyToken(index: number, key: WeekKey, dayIndex: number, value: AttendanceToken) {
     setTableRows((current) =>
@@ -314,8 +317,22 @@ export default function ExtractionDetailPage({ params }: { params: Promise<{ id:
   function addRow() {
     setTableRows((current) => {
       const nextIndex = current.length
-      return [...current, cloneLastRow(current[current.length - 1], nextIndex + 1, activeWeeks)]
+      return [...current, createBlankRow(nextIndex + 1, activeWeeks)]
     })
+  }
+
+  function addWeek() {
+    if (!nextAvailableWeek) return
+
+    setActiveWeeks((current) => {
+      if (current.includes(nextAvailableWeek)) return current
+      return WEEK_KEYS.filter((week) => current.includes(week) || week === nextAvailableWeek)
+    })
+    setWeekLabels((current) => ({
+      ...current,
+      [nextAvailableWeek]: current[nextAvailableWeek] || DEFAULT_WEEK_LABELS[nextAvailableWeek],
+    }))
+    setTableRows((current) => current.map((row) => ({ ...row, [nextAvailableWeek]: parseWeekTokens() })))
   }
 
   function buildPayload() {
@@ -524,7 +541,10 @@ export default function ExtractionDetailPage({ params }: { params: Promise<{ id:
                 </div>
               </div>
 
-              <div className="flex justify-end">
+              <div className="flex flex-wrap justify-end gap-2">
+                <Button type="button" variant="outline" onClick={addWeek} disabled={!nextAvailableWeek}>
+                  Add Column (Week)
+                </Button>
                 <Button type="button" variant="outline" onClick={addRow}>
                   Add Row
                 </Button>
@@ -538,7 +558,11 @@ export default function ExtractionDetailPage({ params }: { params: Promise<{ id:
                       <th rowSpan={2} className="px-3 py-2 font-medium">Student</th>
                       <th rowSpan={2} className="px-3 py-2 font-medium">Admission</th>
                       {activeWeeks.map((week) => (
-                        <th key={week} colSpan={DAY_LABELS.length} className="border-l px-2 py-2 text-center font-medium">
+                        <th
+                          key={week}
+                          colSpan={DAY_LABELS.length}
+                          className="border-x-2 border-primary/40 bg-primary/5 px-2 py-2 text-center font-medium"
+                        >
                           <div className="flex items-center justify-center gap-1">
                             <input
                               className="w-24 rounded border bg-background px-1 py-0.5 text-center text-xs font-medium"
@@ -560,8 +584,11 @@ export default function ExtractionDetailPage({ params }: { params: Promise<{ id:
                     </tr>
                     <tr>
                       {activeWeeks.flatMap((week) =>
-                        DAY_LABELS.map((day) => (
-                          <th key={`${week}-${day}`} className="border-l px-1 py-1 text-center text-xs font-medium">
+                        DAY_LABELS.map((day, dayIndex) => (
+                          <th
+                            key={`${week}-${day}`}
+                            className={`${weekBoundaryClass(dayIndex)} bg-primary/5 px-1 py-1 text-center text-xs font-medium`}
+                          >
                             {day}
                           </th>
                         ))
@@ -608,7 +635,7 @@ export default function ExtractionDetailPage({ params }: { params: Promise<{ id:
                           const tokens = parseWeekTokens(row[weekKey]?.join(" "))
 
                           return tokens.map((token, dayIndex) => (
-                            <td key={`${weekKey}-${dayIndex}`} className="border-l px-1 py-2">
+                            <td key={`${weekKey}-${dayIndex}`} className={`${weekBoundaryClass(dayIndex)} bg-primary/[0.015] px-1 py-2`}>
                               <select
                                 aria-label={`${weekLabels[weekKey]} ${DAY_LABELS[dayIndex]} attendance for ${row.student_name || `row ${index + 1}`}`}
                                 className={[

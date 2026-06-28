@@ -96,6 +96,12 @@ const navItems = [
     hideForGuardian: true,
   },
   {
+    title: "ASC",
+    url: "/dashboard/asc",
+    icon: BarChart3,
+    allowedRoles: ["school-board-admin"],
+  },
+  {
     title: "My Children",
     url: "/dashboard/guardian",
     icon: Users,
@@ -157,12 +163,6 @@ const navItems = [
   },
 ]
 
-const analyticsNavItem = {
-  title: "Analytics",
-  url: "/dashboard/analytics",
-  icon: BarChart3,
-}
-
 export function AppSidebar() {
   const router = useRouter()
   const pathname = usePathname()
@@ -195,7 +195,6 @@ export function AppSidebar() {
 
   const isInternalUser = authUser?.accountType === "internal"
   const isGuardian = authUser?.role === "guardian"
-  const isSchoolBoardAdmin = authUser?.role === "school-board-admin"
   const visibleNavItems = navItems.filter((item) => {
     if (item.hideForInternal && isInternalUser) return false
     if (item.showForInternal && !isInternalUser) return false
@@ -270,25 +269,6 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {isSchoolBoardAdmin ? (
-          <SidebarGroup>
-            <SidebarGroupLabel>Analytics</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                <SidebarMenuItem key={analyticsNavItem.title}>
-                  <SidebarMenuButton
-                    render={<Link href={analyticsNavItem.url} />}
-                    isActive={pathname.startsWith("/dashboard/analytics")}
-                    tooltip={analyticsNavItem.title}
-                  >
-                    <analyticsNavItem.icon />
-                    <span>{analyticsNavItem.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        ) : null}
       </SidebarContent>
 
       <SidebarFooter>

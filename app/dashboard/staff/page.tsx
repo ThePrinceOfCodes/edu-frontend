@@ -32,6 +32,10 @@ export default function StaffPage() {
   const [academicQualification, setAcademicQualification] = useState<"" | "NCE" | "B.Ed" | "B.Sc" | "HND" | "PGDE" | "SSCE">("")
   const [trcnRegistered, setTrcnRegistered] = useState<"" | "yes" | "no">("")
   const [salarySource, setSalarySource] = useState<"" | "1-FTS" | "2-SUBEB" | "3-Private">("")
+  const [isLongTermAbsent, setIsLongTermAbsent] = useState<"" | "yes" | "no">("")
+  const [longTermAbsenceReason, setLongTermAbsenceReason] = useState("")
+  const [longTermAbsenceStartDate, setLongTermAbsenceStartDate] = useState("")
+  const [teachingLevels, setTeachingLevels] = useState("")
   const [loadError, setLoadError] = useState<string | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -129,6 +133,15 @@ export default function StaffPage() {
         academicQualification: academicQualification || undefined,
         trcnRegistered: trcnRegistered === "" ? undefined : trcnRegistered === "yes",
         salarySource: salarySource || undefined,
+        isLongTermAbsent: isLongTermAbsent === "" ? undefined : isLongTermAbsent === "yes",
+        longTermAbsenceReason: longTermAbsenceReason || undefined,
+        longTermAbsenceStartDate: longTermAbsenceStartDate || undefined,
+        teachingLevels: teachingLevels
+          ? teachingLevels
+              .split(",")
+              .map((item) => item.trim())
+              .filter(Boolean) as Array<"pre-primary" | "primary" | "jss" | "sss" | "science-technology">
+          : undefined,
         user: {
           name: userName,
           email: userEmail,
@@ -147,6 +160,10 @@ export default function StaffPage() {
       setAcademicQualification("")
       setTrcnRegistered("")
       setSalarySource("")
+      setIsLongTermAbsent("")
+      setLongTermAbsenceReason("")
+      setLongTermAbsenceStartDate("")
+      setTeachingLevels("")
       setIsCreateOpen(false)
       await loadStaff()
     } catch (submitError) {
@@ -302,6 +319,45 @@ export default function StaffPage() {
                   id="staff-employee-id"
                   value={employeeId}
                   onChange={(event) => setEmployeeId(event.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="staff-long-term-absent">Long-Term Absent</Label>
+                <select
+                  id="staff-long-term-absent"
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                  value={isLongTermAbsent}
+                  onChange={(event) => setIsLongTermAbsent(event.target.value as "" | "yes" | "no")}
+                >
+                  <option value="">Not specified</option>
+                  <option value="yes">Yes</option>
+                  <option value="no">No</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="staff-absence-reason">Absence Reason</Label>
+                <Input
+                  id="staff-absence-reason"
+                  value={longTermAbsenceReason}
+                  onChange={(event) => setLongTermAbsenceReason(event.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="staff-absence-start-date">Absence Start Date</Label>
+                <Input
+                  id="staff-absence-start-date"
+                  type="date"
+                  value={longTermAbsenceStartDate}
+                  onChange={(event) => setLongTermAbsenceStartDate(event.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="staff-teaching-levels">Teaching Levels (comma separated)</Label>
+                <Input
+                  id="staff-teaching-levels"
+                  value={teachingLevels}
+                  onChange={(event) => setTeachingLevels(event.target.value)}
+                  placeholder="pre-primary, primary, jss"
                 />
               </div>
               {submitError ? <p className="text-sm text-destructive">{submitError}</p> : null}

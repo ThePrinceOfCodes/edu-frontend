@@ -75,6 +75,10 @@ export default function StaffProfilePage() {
   const [editTrcnRegistered, setEditTrcnRegistered] = useState<"" | "yes" | "no">("")
   const [editSalarySource, setEditSalarySource] = useState<"" | "1-FTS" | "2-SUBEB" | "3-Private">("")
   const [editIsActive, setEditIsActive] = useState(true)
+  const [editIsLongTermAbsent, setEditIsLongTermAbsent] = useState<"" | "yes" | "no">("")
+  const [editLongTermAbsenceReason, setEditLongTermAbsenceReason] = useState("")
+  const [editLongTermAbsenceStartDate, setEditLongTermAbsenceStartDate] = useState("")
+  const [editTeachingLevels, setEditTeachingLevels] = useState("")
 
   const userName = useMemo(() => getUserName(staff), [staff])
   const placeholderAvatar = useMemo(() => getPlaceholderAvatar(userName), [userName])
@@ -134,6 +138,12 @@ export default function StaffProfilePage() {
     )
     setEditSalarySource(staff.salarySource || "")
     setEditIsActive(staff.isActive !== false)
+    setEditIsLongTermAbsent(
+      typeof staff.isLongTermAbsent === "boolean" ? (staff.isLongTermAbsent ? "yes" : "no") : ""
+    )
+    setEditLongTermAbsenceReason(staff.longTermAbsenceReason || "")
+    setEditLongTermAbsenceStartDate(staff.longTermAbsenceStartDate ? staff.longTermAbsenceStartDate.slice(0, 10) : "")
+    setEditTeachingLevels((staff.teachingLevels || []).join(", "))
     setSaveError(null)
     setIsEditOpen(true)
   }
@@ -158,6 +168,15 @@ export default function StaffProfilePage() {
       academicQualification: editAcademicQualification || null,
       trcnRegistered: editTrcnRegistered === "" ? null : editTrcnRegistered === "yes",
       salarySource: editSalarySource || null,
+      isLongTermAbsent: editIsLongTermAbsent === "" ? null : editIsLongTermAbsent === "yes",
+      longTermAbsenceReason: editLongTermAbsenceReason || null,
+      longTermAbsenceStartDate: editLongTermAbsenceStartDate || null,
+      teachingLevels: editTeachingLevels
+        ? editTeachingLevels
+            .split(",")
+            .map((item) => item.trim())
+            .filter(Boolean) as Array<"pre-primary" | "primary" | "jss" | "sss" | "science-technology">
+        : [],
     }
 
     try {
@@ -321,6 +340,45 @@ export default function StaffProfilePage() {
                     <option value="active">Active</option>
                     <option value="inactive">Inactive</option>
                   </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-staff-long-term-absent">Long-Term Absent</Label>
+                  <select
+                    id="edit-staff-long-term-absent"
+                    className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                    value={editIsLongTermAbsent}
+                    onChange={(event) => setEditIsLongTermAbsent(event.target.value as "" | "yes" | "no")}
+                  >
+                    <option value="">Not specified</option>
+                    <option value="yes">Yes</option>
+                    <option value="no">No</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-staff-absence-reason">Absence Reason</Label>
+                  <Input
+                    id="edit-staff-absence-reason"
+                    value={editLongTermAbsenceReason}
+                    onChange={(event) => setEditLongTermAbsenceReason(event.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-staff-absence-start-date">Absence Start Date</Label>
+                  <Input
+                    id="edit-staff-absence-start-date"
+                    type="date"
+                    value={editLongTermAbsenceStartDate}
+                    onChange={(event) => setEditLongTermAbsenceStartDate(event.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-staff-teaching-levels">Teaching Levels (comma separated)</Label>
+                  <Input
+                    id="edit-staff-teaching-levels"
+                    value={editTeachingLevels}
+                    onChange={(event) => setEditTeachingLevels(event.target.value)}
+                    placeholder="pre-primary, primary, jss"
+                  />
                 </div>
                 {saveError ? <p className="text-sm text-destructive">{saveError}</p> : null}
                 <Button type="submit" disabled={isSaving}>

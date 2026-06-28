@@ -42,6 +42,14 @@ export default function StudentsPage() {
   const [dateOfBirth, setDateOfBirth] = useState("")
   const [school, setSchool] = useState("")
   const [classId, setClassId] = useState("")
+  const [hasSpecialNeeds, setHasSpecialNeeds] = useState<"" | "yes" | "no">("")
+  const [specialNeedsCategory, setSpecialNeedsCategory] = useState<
+    "" | "hearing" | "visual" | "physical" | "intellectual" | "speech-language" | "autism" | "other"
+  >("")
+  const [isRepeater, setIsRepeater] = useState<"" | "yes" | "no">("")
+  const [isNewEntrant, setIsNewEntrant] = useState<"" | "yes" | "no">("")
+  const [entrantAgeYears, setEntrantAgeYears] = useState("")
+  const [educationTrack, setEducationTrack] = useState<"" | "general" | "science-technology" | "vocational">("")
 
   const [filterGender, setFilterGender] = useState("")
   const [filterSchool, setFilterSchool] = useState("")
@@ -213,6 +221,12 @@ export default function StudentsPage() {
         dateOfBirth,
         school,
         classId,
+        hasSpecialNeeds: hasSpecialNeeds === "" ? undefined : hasSpecialNeeds === "yes",
+        specialNeedsCategory: specialNeedsCategory || undefined,
+        isRepeater: isRepeater === "" ? undefined : isRepeater === "yes",
+        isNewEntrant: isNewEntrant === "" ? undefined : isNewEntrant === "yes",
+        entrantAgeYears: entrantAgeYears ? Number(entrantAgeYears) : undefined,
+        educationTrack: educationTrack || undefined,
       })
 
       setFirstName("")
@@ -225,6 +239,12 @@ export default function StudentsPage() {
       setDateOfBirth("")
       setSchool("")
       setClassId("")
+      setHasSpecialNeeds("")
+      setSpecialNeedsCategory("")
+      setIsRepeater("")
+      setIsNewEntrant("")
+      setEntrantAgeYears("")
+      setEducationTrack("")
       setIsCreateOpen(false)
       await loadStudents(1)
       setPage(1)
@@ -280,6 +300,12 @@ export default function StudentsPage() {
         const schoolNameValue = extractCell(row, ["schoolName", "School Name"])
         const classIdValue = extractCell(row, ["classId", "class", "Class ID"])
         const classCodeValue = extractCell(row, ["classCode", "Class Code", "code"])
+        const specialNeedsValue = extractCell(row, ["hasSpecialNeeds", "Has Special Needs"])
+        const specialNeedsCategoryValue = extractCell(row, ["specialNeedsCategory", "Special Needs Category"])
+        const repeaterValue = extractCell(row, ["isRepeater", "Is Repeater"])
+        const newEntrantValue = extractCell(row, ["isNewEntrant", "Is New Entrant"])
+        const entrantAgeYearsValue = extractCell(row, ["entrantAgeYears", "Entrant Age Years"])
+        const educationTrackValue = extractCell(row, ["educationTrack", "Education Track"])
 
         const resolvedSchoolId =
           schoolIdValue ||
@@ -320,6 +346,25 @@ export default function StudentsPage() {
           dateOfBirth: dateOfBirthValue,
           school: resolvedSchoolId,
           classId: resolvedClassId,
+          hasSpecialNeeds: specialNeedsValue ? ["yes", "true", "1", "y"].includes(specialNeedsValue.toLowerCase()) : undefined,
+          specialNeedsCategory: specialNeedsCategoryValue
+            ? (specialNeedsCategoryValue.toLowerCase() as
+                | "hearing"
+                | "visual"
+                | "physical"
+                | "intellectual"
+                | "speech-language"
+                | "autism"
+                | "other")
+            : undefined,
+          isRepeater: repeaterValue ? ["yes", "true", "1", "y"].includes(repeaterValue.toLowerCase()) : undefined,
+          isNewEntrant: newEntrantValue
+            ? ["yes", "true", "1", "y"].includes(newEntrantValue.toLowerCase())
+            : undefined,
+          entrantAgeYears: entrantAgeYearsValue ? Number(entrantAgeYearsValue) : undefined,
+          educationTrack: educationTrackValue
+            ? (educationTrackValue.toLowerCase() as "general" | "science-technology" | "vocational")
+            : undefined,
         }
       })
 
@@ -456,6 +501,109 @@ export default function StudentsPage() {
                     })}
                   </select>
                 </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="student-special-needs">Has Special Needs</Label>
+                    <select
+                      id="student-special-needs"
+                      className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                      value={hasSpecialNeeds}
+                      onChange={(event) => setHasSpecialNeeds(event.target.value as "" | "yes" | "no")}
+                    >
+                      <option value="">Not specified</option>
+                      <option value="yes">Yes</option>
+                      <option value="no">No</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="student-special-needs-category">Special Needs Category</Label>
+                    <select
+                      id="student-special-needs-category"
+                      className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                      value={specialNeedsCategory}
+                      onChange={(event) =>
+                        setSpecialNeedsCategory(
+                          event.target.value as
+                            | ""
+                            | "hearing"
+                            | "visual"
+                            | "physical"
+                            | "intellectual"
+                            | "speech-language"
+                            | "autism"
+                            | "other"
+                        )
+                      }
+                    >
+                      <option value="">None</option>
+                      <option value="hearing">Hearing</option>
+                      <option value="visual">Visual</option>
+                      <option value="physical">Physical</option>
+                      <option value="intellectual">Intellectual</option>
+                      <option value="speech-language">Speech-Language</option>
+                      <option value="autism">Autism</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="student-repeater">Is Repeater</Label>
+                    <select
+                      id="student-repeater"
+                      className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                      value={isRepeater}
+                      onChange={(event) => setIsRepeater(event.target.value as "" | "yes" | "no")}
+                    >
+                      <option value="">Not specified</option>
+                      <option value="yes">Yes</option>
+                      <option value="no">No</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="student-new-entrant">Is New Entrant</Label>
+                    <select
+                      id="student-new-entrant"
+                      className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                      value={isNewEntrant}
+                      onChange={(event) => setIsNewEntrant(event.target.value as "" | "yes" | "no")}
+                    >
+                      <option value="">Not specified</option>
+                      <option value="yes">Yes</option>
+                      <option value="no">No</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="student-entrant-age-years">Entrant Age (Years)</Label>
+                    <Input
+                      id="student-entrant-age-years"
+                      type="number"
+                      min="0"
+                      value={entrantAgeYears}
+                      onChange={(event) => setEntrantAgeYears(event.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="student-education-track">Education Track</Label>
+                    <select
+                      id="student-education-track"
+                      className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                      value={educationTrack}
+                      onChange={(event) =>
+                        setEducationTrack(
+                          event.target.value as "" | "general" | "science-technology" | "vocational"
+                        )
+                      }
+                    >
+                      <option value="">General</option>
+                      <option value="general">General</option>
+                      <option value="science-technology">Science & Technology</option>
+                      <option value="vocational">Vocational</option>
+                    </select>
+                  </div>
+                </div>
                 {submitError ? <p className="text-sm text-destructive">{submitError}</p> : null}
                 <Button type="submit" disabled={isSubmitting}>
                   {isSubmitting ? "Creating..." : "Create Student"}
@@ -470,7 +618,7 @@ export default function StudentsPage() {
               <ModalHeader>
                 <ModalTitle>Import Students from Excel</ModalTitle>
                 <ModalDescription>
-                  Upload .xlsx/.xls with student biodata plus initial enrollment columns: firstName,middleName,lastName,regNumber,stateOfOrigin,localGovernment,gender,dateOfBirth,school|schoolName,classId|classCode
+                  Upload .xlsx/.xls with student biodata plus initial enrollment columns: firstName,middleName,lastName,regNumber,stateOfOrigin,localGovernment,gender,dateOfBirth,school|schoolName,classId|classCode. Optional ASC columns: hasSpecialNeeds,specialNeedsCategory,isRepeater,isNewEntrant,entrantAgeYears,educationTrack.
                 </ModalDescription>
               </ModalHeader>
               <div className="space-y-3">

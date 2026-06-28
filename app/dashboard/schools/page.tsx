@@ -47,6 +47,46 @@ function parseImportText(value: unknown) {
   return trimmed || undefined
 }
 
+function parseImportBoolean(value: unknown) {
+  if (value === null || value === undefined || value === "") {
+    return undefined
+  }
+
+  const normalized = String(value).trim().toLowerCase()
+  if (["yes", "true", "1", "y"].includes(normalized)) {
+    return true
+  }
+
+  if (["no", "false", "0", "n"].includes(normalized)) {
+    return false
+  }
+
+  return undefined
+}
+
+function parseImportEnum<T extends string>(value: unknown, allowed: T[]) {
+  const text = parseImportText(value)
+  if (!text) {
+    return undefined
+  }
+
+  return allowed.includes(text as T) ? (text as T) : undefined
+}
+
+function parseImportCsvList(value: unknown) {
+  const text = parseImportText(value)
+  if (!text) {
+    return undefined
+  }
+
+  const values = text
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean)
+
+  return values.length > 0 ? values : undefined
+}
+
 function normalizeHeaderKey(value: string) {
   return value.toLowerCase().replace(/[^a-z]/g, "")
 }
@@ -90,6 +130,109 @@ function toBulkSchoolPayload(row: Record<string, unknown>, schoolBoardId: string
     accessRoadCondition: parseImportText(getRowValue(row, ["access road condition", "road condition"])),
     typeOfSchool: parseImportText(getRowValue(row, ["type of school", "school type"])),
     shiftSystem: parseImportText(getRowValue(row, ["shift system", "shieft system"])),
+    ascOwnership: parseImportEnum(getRowValue(row, ["ascOwnership", "ASC Ownership", "ownership"]), [
+      "public",
+      "private",
+    ]),
+    ascEducationLevelsOffered: parseImportCsvList(
+      getRowValue(row, ["ascEducationLevelsOffered", "ASC Education Levels Offered"])
+    ) as BulkCreateSchoolInput["ascEducationLevelsOffered"],
+    ascSpecialCurriculum: parseImportBoolean(
+      getRowValue(row, ["ascSpecialCurriculum", "ASC Special Curriculum"])
+    ),
+    ascSpecialCurriculumType: parseImportText(
+      getRowValue(row, ["ascSpecialCurriculumType", "ASC Special Curriculum Type"])
+    ),
+    ascHasSharedFacilities: parseImportBoolean(
+      getRowValue(row, ["ascHasSharedFacilities", "ASC Has Shared Facilities"])
+    ),
+    ascHasSchoolDevelopmentPlan: parseImportBoolean(
+      getRowValue(row, ["ascHasSchoolDevelopmentPlan", "ASC Has School Development Plan"])
+    ),
+    ascHasSchoolBasedManagementCommittee: parseImportBoolean(
+      getRowValue(row, ["ascHasSchoolBasedManagementCommittee", "ASC Has SBMC"])
+    ),
+    ascHasPta: parseImportBoolean(getRowValue(row, ["ascHasPta", "ASC Has PTA"])),
+    ascHasMultigradeTeaching: parseImportBoolean(
+      getRowValue(row, ["ascHasMultigradeTeaching", "ASC Has Multigrade Teaching"])
+    ),
+    ascClassesHeldOutside: parseImportBoolean(
+      getRowValue(row, ["ascClassesHeldOutside", "ASC Classes Held Outside"])
+    ),
+    ascHasHealthFacility: parseImportBoolean(
+      getRowValue(row, ["ascHasHealthFacility", "ASC Has Health Facility"])
+    ),
+    ascMainSafeWaterSource: parseImportEnum(
+      getRowValue(row, ["ascMainSafeWaterSource", "ASC Main Safe Water Source"]),
+      ["piped", "borehole", "protected-well", "rainwater", "surface-water", "vendor-truck", "none", "other"]
+    ),
+    ascTotalToilets: parseImportNumber(getRowValue(row, ["ascTotalToilets", "ASC Total Toilets"])),
+    ascToiletsForBoys: parseImportNumber(getRowValue(row, ["ascToiletsForBoys", "ASC Toilets For Boys"])),
+    ascToiletsForGirls: parseImportNumber(getRowValue(row, ["ascToiletsForGirls", "ASC Toilets For Girls"])),
+    ascToiletsForCwsn: parseImportNumber(getRowValue(row, ["ascToiletsForCwsn", "ASC Toilets For CWSN"])),
+    ascPupilToiletRatio: parseImportNumber(getRowValue(row, ["ascPupilToiletRatio", "ASC Pupil Toilet Ratio"])),
+    ascUsableClassroomsPrePrimaryPrimary: parseImportNumber(
+      getRowValue(row, ["ascUsableClassroomsPrePrimaryPrimary", "ASC Usable Classrooms PrePrimary Primary"])
+    ),
+    ascUsableClassroomsJss: parseImportNumber(getRowValue(row, ["ascUsableClassroomsJss", "ASC Usable Classrooms JSS"])),
+    ascUsableClassroomsSss: parseImportNumber(getRowValue(row, ["ascUsableClassroomsSss", "ASC Usable Classrooms SSS"])),
+    ascUsableClassroomsScienceTech: parseImportNumber(
+      getRowValue(row, ["ascUsableClassroomsScienceTech", "ASC Usable Classrooms Science Tech"])
+    ),
+    ascClassroomsNeedsMajorRepairPrePrimaryPrimary: parseImportNumber(
+      getRowValue(row, [
+        "ascClassroomsNeedsMajorRepairPrePrimaryPrimary",
+        "ASC Classrooms Needs Major Repair PrePrimary Primary",
+      ])
+    ),
+    ascClassroomsNeedsMajorRepairJss: parseImportNumber(
+      getRowValue(row, ["ascClassroomsNeedsMajorRepairJss", "ASC Classrooms Needs Major Repair JSS"])
+    ),
+    ascClassroomsNeedsMajorRepairSss: parseImportNumber(
+      getRowValue(row, ["ascClassroomsNeedsMajorRepairSss", "ASC Classrooms Needs Major Repair SSS"])
+    ),
+    ascClassroomsNeedsMajorRepairScienceTech: parseImportNumber(
+      getRowValue(row, ["ascClassroomsNeedsMajorRepairScienceTech", "ASC Classrooms Needs Major Repair Science Tech"])
+    ),
+    ascClassroomsInsufficientSeatingPrePrimaryPrimary: parseImportNumber(
+      getRowValue(row, [
+        "ascClassroomsInsufficientSeatingPrePrimaryPrimary",
+        "ASC Classrooms Insufficient Seating PrePrimary Primary",
+      ])
+    ),
+    ascClassroomsInsufficientSeatingJss: parseImportNumber(
+      getRowValue(row, ["ascClassroomsInsufficientSeatingJss", "ASC Classrooms Insufficient Seating JSS"])
+    ),
+    ascClassroomsInsufficientSeatingSss: parseImportNumber(
+      getRowValue(row, ["ascClassroomsInsufficientSeatingSss", "ASC Classrooms Insufficient Seating SSS"])
+    ),
+    ascClassroomsInsufficientSeatingScienceTech: parseImportNumber(
+      getRowValue(row, [
+        "ascClassroomsInsufficientSeatingScienceTech",
+        "ASC Classrooms Insufficient Seating Science Tech",
+      ])
+    ),
+    ascClassroomsWithoutGoodBlackboardPrePrimaryPrimary: parseImportNumber(
+      getRowValue(row, [
+        "ascClassroomsWithoutGoodBlackboardPrePrimaryPrimary",
+        "ASC Classrooms Without Good Blackboard PrePrimary Primary",
+      ])
+    ),
+    ascClassroomsWithoutGoodBlackboardJss: parseImportNumber(
+      getRowValue(row, ["ascClassroomsWithoutGoodBlackboardJss", "ASC Classrooms Without Good Blackboard JSS"])
+    ),
+    ascClassroomsWithoutGoodBlackboardSss: parseImportNumber(
+      getRowValue(row, ["ascClassroomsWithoutGoodBlackboardSss", "ASC Classrooms Without Good Blackboard SSS"])
+    ),
+    ascClassroomsWithoutGoodBlackboardScienceTech: parseImportNumber(
+      getRowValue(row, [
+        "ascClassroomsWithoutGoodBlackboardScienceTech",
+        "ASC Classrooms Without Good Blackboard Science Tech",
+      ])
+    ),
+    ascWorkshopCountScienceTech: parseImportNumber(
+      getRowValue(row, ["ascWorkshopCountScienceTech", "ASC Workshop Count Science Tech"])
+    ),
     facilitiesAvailable: parseImportText(
       getRowValue(row, [
         "facilities available",
@@ -402,6 +545,12 @@ export default function SchoolsPage() {
         accessRoadCondition: accessRoadCondition || undefined,
         typeOfSchool: typeOfSchool || undefined,
         shiftSystem: shiftSystem || undefined,
+        ascOwnership:
+          categoryOfSchool.trim().toLowerCase() === "public"
+            ? "public"
+            : categoryOfSchool.trim().toLowerCase() === "private"
+              ? "private"
+              : undefined,
         numberOfClasses: numberOfClasses ? Number(numberOfClasses) : undefined,
         numberOfClassroomsAvailable: numberOfClassroomsAvailable ? Number(numberOfClassroomsAvailable) : undefined,
         facilitiesAvailable: facilitiesAvailable || undefined,
@@ -491,6 +640,40 @@ export default function SchoolsPage() {
       "Access Road Condition",
       "Type of school",
       "Shieft System",
+      "ASC Ownership",
+      "ASC Education Levels Offered",
+      "ASC Special Curriculum",
+      "ASC Special Curriculum Type",
+      "ASC Has Shared Facilities",
+      "ASC Has School Development Plan",
+      "ASC Has SBMC",
+      "ASC Has PTA",
+      "ASC Has Multigrade Teaching",
+      "ASC Classes Held Outside",
+      "ASC Has Health Facility",
+      "ASC Main Safe Water Source",
+      "ASC Total Toilets",
+      "ASC Toilets For Boys",
+      "ASC Toilets For Girls",
+      "ASC Toilets For CWSN",
+      "ASC Pupil Toilet Ratio",
+      "ASC Usable Classrooms PrePrimary Primary",
+      "ASC Usable Classrooms JSS",
+      "ASC Usable Classrooms SSS",
+      "ASC Usable Classrooms Science Tech",
+      "ASC Classrooms Needs Major Repair PrePrimary Primary",
+      "ASC Classrooms Needs Major Repair JSS",
+      "ASC Classrooms Needs Major Repair SSS",
+      "ASC Classrooms Needs Major Repair Science Tech",
+      "ASC Classrooms Insufficient Seating PrePrimary Primary",
+      "ASC Classrooms Insufficient Seating JSS",
+      "ASC Classrooms Insufficient Seating SSS",
+      "ASC Classrooms Insufficient Seating Science Tech",
+      "ASC Classrooms Without Good Blackboard PrePrimary Primary",
+      "ASC Classrooms Without Good Blackboard JSS",
+      "ASC Classrooms Without Good Blackboard SSS",
+      "ASC Classrooms Without Good Blackboard Science Tech",
+      "ASC Workshop Count Science Tech",
       "Number of Classes",
       "Number of Classrooms Available",
       "Facilities Available (e.g labs, computers, Library, staff room,  etc)",
@@ -518,6 +701,40 @@ export default function SchoolsPage() {
       "Tarred",
       "Primary",
       "Single",
+      "public",
+      "pre-primary,primary",
+      "no",
+      "",
+      "yes",
+      "yes",
+      "yes",
+      "yes",
+      "no",
+      "no",
+      "yes",
+      "borehole",
+      "14",
+      "6",
+      "7",
+      "1",
+      "60",
+      "20",
+      "0",
+      "0",
+      "0",
+      "1",
+      "0",
+      "0",
+      "0",
+      "2",
+      "0",
+      "0",
+      "0",
+      "1",
+      "0",
+      "0",
+      "0",
+      "0",
       "24",
       "20",
       "Library, Computer Lab, Staff Room",

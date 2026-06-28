@@ -60,6 +60,49 @@ export interface School {
   typeOfSchool?: string
   shiftSystem?: string
   facilitiesAvailable?: string
+  ascOwnership?: "public" | "private" | null
+  ascEducationLevelsOffered?: Array<"pre-primary" | "primary" | "jss" | "sss" | "science-technology">
+  ascSpecialCurriculum?: boolean | null
+  ascSpecialCurriculumType?: string | null
+  ascHasSharedFacilities?: boolean | null
+  ascHasSchoolDevelopmentPlan?: boolean | null
+  ascHasSchoolBasedManagementCommittee?: boolean | null
+  ascHasPta?: boolean | null
+  ascHasMultigradeTeaching?: boolean | null
+  ascClassesHeldOutside?: boolean | null
+  ascHasHealthFacility?: boolean | null
+  ascMainSafeWaterSource?:
+    | "piped"
+    | "borehole"
+    | "protected-well"
+    | "rainwater"
+    | "surface-water"
+    | "vendor-truck"
+    | "none"
+    | "other"
+    | null
+  ascTotalToilets?: number | null
+  ascToiletsForBoys?: number | null
+  ascToiletsForGirls?: number | null
+  ascToiletsForCwsn?: number | null
+  ascPupilToiletRatio?: number | null
+  ascUsableClassroomsPrePrimaryPrimary?: number | null
+  ascUsableClassroomsJss?: number | null
+  ascUsableClassroomsSss?: number | null
+  ascUsableClassroomsScienceTech?: number | null
+  ascClassroomsNeedsMajorRepairPrePrimaryPrimary?: number | null
+  ascClassroomsNeedsMajorRepairJss?: number | null
+  ascClassroomsNeedsMajorRepairSss?: number | null
+  ascClassroomsNeedsMajorRepairScienceTech?: number | null
+  ascClassroomsInsufficientSeatingPrePrimaryPrimary?: number | null
+  ascClassroomsInsufficientSeatingJss?: number | null
+  ascClassroomsInsufficientSeatingSss?: number | null
+  ascClassroomsInsufficientSeatingScienceTech?: number | null
+  ascClassroomsWithoutGoodBlackboardPrePrimaryPrimary?: number | null
+  ascClassroomsWithoutGoodBlackboardJss?: number | null
+  ascClassroomsWithoutGoodBlackboardSss?: number | null
+  ascClassroomsWithoutGoodBlackboardScienceTech?: number | null
+  ascWorkshopCountScienceTech?: number | null
   headTeacherName?: string
   headTeacherPhoneNumber?: string
   assistantHeadTeacherName?: string
@@ -92,6 +135,48 @@ export interface CreateSchoolInput {
   typeOfSchool?: string
   shiftSystem?: string
   facilitiesAvailable?: string
+  ascOwnership?: "public" | "private"
+  ascEducationLevelsOffered?: Array<"pre-primary" | "primary" | "jss" | "sss" | "science-technology">
+  ascSpecialCurriculum?: boolean
+  ascSpecialCurriculumType?: string
+  ascHasSharedFacilities?: boolean
+  ascHasSchoolDevelopmentPlan?: boolean
+  ascHasSchoolBasedManagementCommittee?: boolean
+  ascHasPta?: boolean
+  ascHasMultigradeTeaching?: boolean
+  ascClassesHeldOutside?: boolean
+  ascHasHealthFacility?: boolean
+  ascMainSafeWaterSource?:
+    | "piped"
+    | "borehole"
+    | "protected-well"
+    | "rainwater"
+    | "surface-water"
+    | "vendor-truck"
+    | "none"
+    | "other"
+  ascTotalToilets?: number
+  ascToiletsForBoys?: number
+  ascToiletsForGirls?: number
+  ascToiletsForCwsn?: number
+  ascPupilToiletRatio?: number
+  ascUsableClassroomsPrePrimaryPrimary?: number
+  ascUsableClassroomsJss?: number
+  ascUsableClassroomsSss?: number
+  ascUsableClassroomsScienceTech?: number
+  ascClassroomsNeedsMajorRepairPrePrimaryPrimary?: number
+  ascClassroomsNeedsMajorRepairJss?: number
+  ascClassroomsNeedsMajorRepairSss?: number
+  ascClassroomsNeedsMajorRepairScienceTech?: number
+  ascClassroomsInsufficientSeatingPrePrimaryPrimary?: number
+  ascClassroomsInsufficientSeatingJss?: number
+  ascClassroomsInsufficientSeatingSss?: number
+  ascClassroomsInsufficientSeatingScienceTech?: number
+  ascClassroomsWithoutGoodBlackboardPrePrimaryPrimary?: number
+  ascClassroomsWithoutGoodBlackboardJss?: number
+  ascClassroomsWithoutGoodBlackboardSss?: number
+  ascClassroomsWithoutGoodBlackboardScienceTech?: number
+  ascWorkshopCountScienceTech?: number
   headTeacherName?: string
   headTeacherPhoneNumber?: string
   assistantHeadTeacherName?: string
@@ -122,6 +207,49 @@ export interface UpdateSchoolInput {
   typeOfSchool?: string | null
   shiftSystem?: string | null
   facilitiesAvailable?: string | null
+  ascOwnership?: "public" | "private" | null
+  ascEducationLevelsOffered?: Array<"pre-primary" | "primary" | "jss" | "sss" | "science-technology">
+  ascSpecialCurriculum?: boolean | null
+  ascSpecialCurriculumType?: string | null
+  ascHasSharedFacilities?: boolean | null
+  ascHasSchoolDevelopmentPlan?: boolean | null
+  ascHasSchoolBasedManagementCommittee?: boolean | null
+  ascHasPta?: boolean | null
+  ascHasMultigradeTeaching?: boolean | null
+  ascClassesHeldOutside?: boolean | null
+  ascHasHealthFacility?: boolean | null
+  ascMainSafeWaterSource?:
+    | "piped"
+    | "borehole"
+    | "protected-well"
+    | "rainwater"
+    | "surface-water"
+    | "vendor-truck"
+    | "none"
+    | "other"
+    | null
+  ascTotalToilets?: number | null
+  ascToiletsForBoys?: number | null
+  ascToiletsForGirls?: number | null
+  ascToiletsForCwsn?: number | null
+  ascPupilToiletRatio?: number | null
+  ascUsableClassroomsPrePrimaryPrimary?: number | null
+  ascUsableClassroomsJss?: number | null
+  ascUsableClassroomsSss?: number | null
+  ascUsableClassroomsScienceTech?: number | null
+  ascClassroomsNeedsMajorRepairPrePrimaryPrimary?: number | null
+  ascClassroomsNeedsMajorRepairJss?: number | null
+  ascClassroomsNeedsMajorRepairSss?: number | null
+  ascClassroomsNeedsMajorRepairScienceTech?: number | null
+  ascClassroomsInsufficientSeatingPrePrimaryPrimary?: number | null
+  ascClassroomsInsufficientSeatingJss?: number | null
+  ascClassroomsInsufficientSeatingSss?: number | null
+  ascClassroomsInsufficientSeatingScienceTech?: number | null
+  ascClassroomsWithoutGoodBlackboardPrePrimaryPrimary?: number | null
+  ascClassroomsWithoutGoodBlackboardJss?: number | null
+  ascClassroomsWithoutGoodBlackboardSss?: number | null
+  ascClassroomsWithoutGoodBlackboardScienceTech?: number | null
+  ascWorkshopCountScienceTech?: number | null
   headTeacherName?: string | null
   headTeacherPhoneNumber?: string | null
   assistantHeadTeacherName?: string | null
@@ -154,6 +282,48 @@ export interface BulkCreateSchoolInput {
   typeOfSchool?: string
   shiftSystem?: string
   facilitiesAvailable?: string
+  ascOwnership?: "public" | "private"
+  ascEducationLevelsOffered?: Array<"pre-primary" | "primary" | "jss" | "sss" | "science-technology">
+  ascSpecialCurriculum?: boolean
+  ascSpecialCurriculumType?: string
+  ascHasSharedFacilities?: boolean
+  ascHasSchoolDevelopmentPlan?: boolean
+  ascHasSchoolBasedManagementCommittee?: boolean
+  ascHasPta?: boolean
+  ascHasMultigradeTeaching?: boolean
+  ascClassesHeldOutside?: boolean
+  ascHasHealthFacility?: boolean
+  ascMainSafeWaterSource?:
+    | "piped"
+    | "borehole"
+    | "protected-well"
+    | "rainwater"
+    | "surface-water"
+    | "vendor-truck"
+    | "none"
+    | "other"
+  ascTotalToilets?: number
+  ascToiletsForBoys?: number
+  ascToiletsForGirls?: number
+  ascToiletsForCwsn?: number
+  ascPupilToiletRatio?: number
+  ascUsableClassroomsPrePrimaryPrimary?: number
+  ascUsableClassroomsJss?: number
+  ascUsableClassroomsSss?: number
+  ascUsableClassroomsScienceTech?: number
+  ascClassroomsNeedsMajorRepairPrePrimaryPrimary?: number
+  ascClassroomsNeedsMajorRepairJss?: number
+  ascClassroomsNeedsMajorRepairSss?: number
+  ascClassroomsNeedsMajorRepairScienceTech?: number
+  ascClassroomsInsufficientSeatingPrePrimaryPrimary?: number
+  ascClassroomsInsufficientSeatingJss?: number
+  ascClassroomsInsufficientSeatingSss?: number
+  ascClassroomsInsufficientSeatingScienceTech?: number
+  ascClassroomsWithoutGoodBlackboardPrePrimaryPrimary?: number
+  ascClassroomsWithoutGoodBlackboardJss?: number
+  ascClassroomsWithoutGoodBlackboardSss?: number
+  ascClassroomsWithoutGoodBlackboardScienceTech?: number
+  ascWorkshopCountScienceTech?: number
   headTeacherName?: string
   headTeacherPhoneNumber?: string
   assistantHeadTeacherName?: string
@@ -191,6 +361,11 @@ export interface Staff {
   academicQualification?: "NCE" | "B.Ed" | "B.Sc" | "HND" | "PGDE" | "SSCE" | null
   trcnRegistered?: boolean | null
   salarySource?: "1-FTS" | "2-SUBEB" | "3-Private" | null
+  isLongTermAbsent?: boolean | null
+  longTermAbsenceReason?: string | null
+  longTermAbsenceStartDate?: string | null
+  teachingLevels?: Array<"pre-primary" | "primary" | "jss" | "sss" | "science-technology">
+  teachingClassIds?: string[]
   user?:
     | string
     | {
@@ -216,6 +391,11 @@ export interface CreateStaffInput {
   academicQualification?: "NCE" | "B.Ed" | "B.Sc" | "HND" | "PGDE" | "SSCE"
   trcnRegistered?: boolean
   salarySource?: "1-FTS" | "2-SUBEB" | "3-Private"
+  isLongTermAbsent?: boolean
+  longTermAbsenceReason?: string
+  longTermAbsenceStartDate?: string
+  teachingLevels?: Array<"pre-primary" | "primary" | "jss" | "sss" | "science-technology">
+  teachingClassIds?: string[]
   employmentType?: "teacher" | "staff"
   staffType?: "academic" | "non-academic" | "admin"
   isActive?: boolean
@@ -237,6 +417,11 @@ export interface UpdateStaffInput {
   academicQualification?: "NCE" | "B.Ed" | "B.Sc" | "HND" | "PGDE" | "SSCE" | null
   trcnRegistered?: boolean | null
   salarySource?: "1-FTS" | "2-SUBEB" | "3-Private" | null
+  isLongTermAbsent?: boolean | null
+  longTermAbsenceReason?: string | null
+  longTermAbsenceStartDate?: string | null
+  teachingLevels?: Array<"pre-primary" | "primary" | "jss" | "sss" | "science-technology">
+  teachingClassIds?: string[]
   employmentType?: "teacher" | "staff"
   staffType?: "academic" | "non-academic" | "admin"
   isActive?: boolean
@@ -270,12 +455,22 @@ export interface Class {
   name: string
   code: string
   schoolTypeId: string
+  educationLevel?: "pre-primary" | "primary" | "jss" | "sss" | "science-technology" | null
+  ascLevelCode?: string | null
+  levelOrder?: number | null
+  ageRangeMin?: number | null
+  ageRangeMax?: number | null
 }
 
 export interface CreateClassInput {
   name: string
   code: string
   schoolTypeId: string
+  educationLevel?: "pre-primary" | "primary" | "jss" | "sss" | "science-technology"
+  ascLevelCode?: string
+  levelOrder?: number
+  ageRangeMin?: number
+  ageRangeMax?: number
 }
 
 export interface AcademicSession {
@@ -581,6 +776,20 @@ export interface Student {
   schoolBoard?: string | null
   school?: string
   classId?: string
+  hasSpecialNeeds?: boolean | null
+  specialNeedsCategory?:
+    | "hearing"
+    | "visual"
+    | "physical"
+    | "intellectual"
+    | "speech-language"
+    | "autism"
+    | "other"
+    | null
+  isRepeater?: boolean | null
+  isNewEntrant?: boolean | null
+  entrantAgeYears?: number | null
+  educationTrack?: "general" | "science-technology" | "vocational" | null
   status?: "active" | "inactive"
   guardianIds?: string[]
   guardianLinks?: StudentGuardianLink[]
@@ -604,6 +813,19 @@ export interface CreateStudentInput {
   primaryGuardianId?: string | null
   school: string
   classId: string
+  hasSpecialNeeds?: boolean
+  specialNeedsCategory?:
+    | "hearing"
+    | "visual"
+    | "physical"
+    | "intellectual"
+    | "speech-language"
+    | "autism"
+    | "other"
+  isRepeater?: boolean
+  isNewEntrant?: boolean
+  entrantAgeYears?: number
+  educationTrack?: "general" | "science-technology" | "vocational"
   status?: "active" | "inactive"
 }
 
@@ -619,6 +841,20 @@ export interface UpdateStudentInput {
   guardianIds?: string[]
   guardianLinks?: StudentGuardianLink[]
   primaryGuardianId?: string | null
+  hasSpecialNeeds?: boolean | null
+  specialNeedsCategory?:
+    | "hearing"
+    | "visual"
+    | "physical"
+    | "intellectual"
+    | "speech-language"
+    | "autism"
+    | "other"
+    | null
+  isRepeater?: boolean | null
+  isNewEntrant?: boolean | null
+  entrantAgeYears?: number | null
+  educationTrack?: "general" | "science-technology" | "vocational" | null
   status?: "active" | "inactive"
 }
 
